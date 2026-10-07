@@ -1,0 +1,31 @@
+# Environment
+*.env
+.env.*
+!.env.example
+
+# Virtual environment
+.venv*
+
+# pyenv
+.python-version
+
+# Conf dir
+#_CONF
+connectors/*
+
+# Docs
+docs/*
+!doc/diagrams
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+
+# Bind mounted dirs/files
+#_nginx-server/html/css
+
+pip_freeze.txt
+
+# Containers' dirs
+db-src/import/import.csv

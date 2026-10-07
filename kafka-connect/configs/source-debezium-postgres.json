@@ -1,0 +1,19 @@
+{
+  "connector.class": "io.debezium.connector.postgresql.PostgresConnector", 
+  "plugin.name": "pgoutput",
+  "snapshot.mode": "always",
+  "database.hostname": "${env:SRVC_DBSRC}",
+  "database.port": "${env:CTNR_DB_SRC_PORT}",
+  "database.user": "${env:DEBEZIUM_USER}", 
+  "database.password": "${env:DEBEZIUM_PASSWORD}",
+  "database.dbname" : "${env:DB_SRC_NAME}",
+  "topic.prefix": "${env:TOPIC_PREFIX}",
+  "table.include.list": "${env:SRC_TABLES}",
+  "slot.name": "${env:DEBEZIUM_SLOT}",
+  "publication.name": "${env:DEBEZIUM_PUBLICATION}",
+  "publication.autocreate.mode": "disabled",
+  "tombstones.on.delete": "false",
+  "max.queue.size":8192,
+  "max.batch.size":2048,
+  "poll.interval.ms": 1000
+}

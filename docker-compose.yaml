@@ -1,0 +1,191 @@
+name: ${PROJECT_NAME}
+services:
+  db-src:
+    image: postgres:18.4-bookworm
+    container_name: ${PROJECT_NAME}-${SRVC_DBSRC}
+    ports: ["127.0.0.1:${HOST_DB_SRC_PORT}:${CTNR_DB_SRC_PORT}"]
+    environment:
+      POSTGRES_USER: ${DB_SRC_USER}           # NOM ATTENDU PAR L'IMAGE POSTGRES 
+      POSTGRES_PASSWORD: ${DB_SRC_PASSWORD}   # NOM ATTENDU PAR L'IMAGE POSTGRES
+      POSTGRES_DB: ${DB_SRC_NAME}               # NOM ATTENDU PAR L'IMAGE POSTGRES
+      DB_SRC_SCHEMA_1: ${DB_SRC_SCHEMA_1}
+      DB_SRC_SCHEMA_2: ${DB_SRC_SCHEMA_2}
+      DEBEZIUM_USER: ${DEBEZIUM_USER}
+      DEBEZIUM_PASSWORD: ${DEBEZIUM_PASSWORD}
+      DEBEZIUM_PUBLICATION: ${DEBEZIUM_PUBLICATION}
+    volumes:
+      - ./${SRVC_DBSRC}:/docker-entrypoint-initdb.d
+      - ${SRVC_DBSRC}-data:/var/lib/postgresql       # volume nommé db-src-data pour faire persister les données de la base source
+    # command
+    # Prévoir la modification du port par défaut
+    # max_replication_slots : Nombre de slots de réplication logiques (pour Debezium)
+    command: >
+      postgres
+      -c port=${CTNR_DB_SRC_PORT}
+      -c wal_level=logical
+      -c max_slot_wal_keep_size=10GB
+      -c max_replication_slots=5
+    networks:
+      - project-network
+    healthcheck:
+      # CMD-SHELL cf. kafka.healthcheck
+      # Prévoir la modification du port par défaut
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p ${CTNR_DB_SRC_PORT} -U $$POSTGRES_USER"]   # POSTGRES_USER est dans les env du conteneur -> $$POSTGRES_USER est connu
+      interval: 10s       # On espace les vérifications pour ne pas surcharger le processeur
+      timeout: 5s         # On laisse 5s à Postgres pour répondre (Utile si le disque est saturé par les inserts)
+      retries: 30         # On augmente à 30 essais
+      start_period: 5m    # 5 minutes d'immunité totale pour laisser l'import se faire tranquillement
+
+  kafka-broker:
+    image: quay.io/debezium/kafka:${DEBEZIUM_VERSION}
+    container_name: ${PROJECT_NAME}-kafka-broker
+    ports: ["127.0.0.1:${HOST_KAFKA_PORT}:${CTNR_KAFKA_EXTERNAL_LISTENER_PORT}"]     # défaut : "9092:9092" = port du listener externe au sein du conteneur
+    environment:
+      CLUSTER_ID: ${CLUSTER_ID}
+      NODE_ID: ${NODE_ID}
+      NODE_ROLE: ${NODE_ROLE}
+      KAFKA_CONTROLLER_QUORUM_VOTERS: ${KAFKA_CONTROLLER_QUORUM_VOTERS}
+      KAFKA_LISTENERS: ${KAFKA_LISTENERS}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'     # Création automatique des topics (côté broker)
+      # Rétention par défaut pour tous les topics
+      KAFKA_LOG_RETENTION_MS: 86400000        # 24h
+      KAFKA_LOG_RETENTION_BYTES: 1073741824   # 1GB par partition
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000  # vérif toutes les 5min
+      KAFKA_LOG_SEGMENT_BYTES: 536870912      # segments de 512MB
+    networks:
+      - project-network
+    healthcheck:
+      # On a besoin de connaître le path des scripts de l'image Debezium pour le healthcheck
+      # On localise les scripts avec docker run --rm --entrypoint sh quay.io/debezium/kafka:3.6 -c 'find / -name "kafka-broker-api-versions*" 2>/dev/null'
+      # le path est passé à CMD-SHELL pour le healthcheck
+      # On utilise CMD-SHELL pour envoyer des commandes avec des redirections et l'expansion de variables
+      test: ["CMD-SHELL", "/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server ${BOOTSTRAP_SERVERS} > /dev/null"]   # BOOTSTRAP_SERVERS n'est pas dans les env du conteneur, donc on l'appelle depuis .env
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  kafka-connect:
+    build:
+      context: ./${SRVC_CONNECT}
+      args:
+        DEBEZIUM_VERSION: ${DEBEZIUM_VERSION}                 # passé au build des images des étapes 1 et 2
+      dockerfile: Dockerfile
+    pull_policy: build                                    # reconstruit l'image à chaque `up` pour charger les nouveaux plugins (sinon l'image existante est réutilisée)
+    container_name: ${PROJECT_NAME}-${SRVC_CONNECT}
+    ports: ["127.0.0.1:${HOST_CONNECT_PORT}:${CTNR_CONNECT_PORT}"]           # défaut : "8083:8083"
+    environment:
+      REST_PORT: ${CTNR_CONNECT_PORT}                         # Nom attendu par l'image Debezium Connect si différent de 8083
+      GROUP_ID: ${GROUP_ID}
+      CONFIG_STORAGE_TOPIC: ${CONFIG_STORAGE_TOPIC}
+      OFFSET_STORAGE_TOPIC: ${OFFSET_STORAGE_TOPIC}
+      STATUS_STORAGE_TOPIC: ${STATUS_STORAGE_TOPIC}
+      BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
+      CONNECT_TOPIC_CREATION_ENABLE: 'true'                   # Création automatique des topics (côté connect)
+      CONNECT_CONFIG_PROVIDERS: 'env'                         # Déclarer le provider "env"
+      CONNECT_CONFIG_PROVIDERS_ENV_CLASS: 'org.apache.kafka.common.config.provider.EnvVarConfigProvider'  # Spécifier la classe Java associée au provider
+      SRVC_DBSRC: ${SRVC_DBSRC}                               # -> connector.json : db hostname
+      CTNR_DB_SRC_PORT: ${CTNR_DB_SRC_PORT}                   # -> connector.json : db port
+      DEBEZIUM_USER: ${DEBEZIUM_USER}
+      DEBEZIUM_PASSWORD: ${DEBEZIUM_PASSWORD}
+      DB_SRC_NAME: ${DB_SRC_NAME}
+      TOPIC_PREFIX: ${TOPIC_PREFIX_CONNECT}
+      SRC_TABLES: ${SRC_TABLES_CONNECT}
+      DEBEZIUM_SLOT: ${DEBEZIUM_SLOT}
+      DEBEZIUM_PUBLICATION: ${DEBEZIUM_PUBLICATION}
+      # ENV pour la  base cible
+      SRVC_DBTARGET: ${SRVC_DBTARGET}
+      CTNR_DB_TARGET_PORT: ${CTNR_DB_TARGET_PORT}
+      DB_TARGET_USER: ${DB_TARGET_USER}
+      DB_TARGET_PASSWORD: ${DB_TARGET_PASSWORD}
+      DB_TARGET_NAME: ${DB_TARGET_NAME}
+    networks:
+      - project-network
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+    healthcheck:
+      # CMD-SHELL cf. kafka-broker.healthcheck
+      test: ["CMD-SHELL", "/kafka/check-connectors.sh"]   # On vérifie que le service est bien démarré et qu'il répond aux requêtes HTTP
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  db-target:
+    image: postgres:18.4-bookworm
+    container_name: ${PROJECT_NAME}-db-target
+    ports: ["127.0.0.1:${HOST_DB_TARGET_PORT}:${CTNR_DB_TARGET_PORT}"]
+    environment:
+      POSTGRES_USER: ${DB_TARGET_USER}                # NOM ATTENDU PAR L'IMAGE POSTGRES
+      POSTGRES_PASSWORD: ${DB_TARGET_PASSWORD}        # NOM ATTENDU PAR L'IMAGE POSTGRES
+      POSTGRES_DB: ${DB_TARGET_NAME}                  # NOM ATTENDU PAR L'IMAGE POSTGRES
+    volumes:
+      - ./db-target:/docker-entrypoint-initdb.d
+      - db-target-data:/var/lib/postgresql       # volume nommé db-target-data pour faire persister les données de la base target
+    command: >
+      postgres -c port=${CTNR_DB_TARGET_PORT}
+    networks:
+      - project-network
+    healthcheck:
+      # CMD-SHELL cf. kafka-broker.healthcheck
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p ${CTNR_DB_TARGET_PORT} -U $$POSTGRES_USER"]   # POSTGRES_USER est dans les env du conteneur -> $$POSTGRES_USER est connu
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  init:           # Initialise le connecteur Debezium
+    image: curlimages/curl:latest
+    container_name: ${PROJECT_NAME}-${SRVC_CONNECT}-init
+    environment:
+      SRVC_CONNECT: ${SRVC_CONNECT}
+      CTNR_CONNECT_PORT: ${CTNR_CONNECT_PORT}
+      PROJECT_NAME: ${PROJECT_NAME}
+    networks:
+      - project-network
+    depends_on:
+      kafka-connect:
+        condition: service_healthy
+      db-src:
+        condition: service_healthy
+    volumes:
+      - ./${SRVC_CONNECT}/configs:/configs
+      - ./${SRVC_CONNECT}/scripts/init.sh:/init.sh
+    entrypoint: sh /init.sh
+
+  consumer-replicate:                 # Consumer nommé replicate pour permettre une archi à plusieurs consumers
+    build:
+      context: ./consumers/consumer-replicate
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME}-consumer-replicate    # Un conteneur par topic
+    environment:
+      PYTHONUNBUFFERED: 1
+      SINK_HOST: ${SRVC_DBTARGET}                   # Nom du service qui héberge la base target
+      SINK_PORT: ${CTNR_DB_TARGET_PORT}             # Port d'écoute de la base dans le conteneur du service
+      SINK_DB: ${DB_TARGET_NAME}                    # Nom de la base cible dans le conteneur du service
+      SINK_USER: ${DB_TARGET_USER}
+      SINK_PASSWORD: ${DB_TARGET_PASSWORD}
+      BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID_MONITOR}     # Valeur passée à Kafka (au prog python du consumer) pour que Kafka connaisse les offsets du consumer dans chaque topic. Le nom du groupe est partagé par tous les consumers qui consomment les mêmes topics pour que Kafka répartisse les partitions entre eux. 
+      TOPIC_PREFIX: ${TOPIC_PREFIX_CONNECT}    
+      SRC_TABLES: ${SRC_TABLES_CONNECT}
+    networks:
+      - project-network
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      db-target:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+
+volumes:
+  db-src-data:              # Volume nommé - effacé avec docker compose down -v
+  db-target-data:           # Volume nommé - effacé avec docker compose down -v
+
+networks:
+  project-network:
+    name: ${PROJECT_NAME}

@@ -1,0 +1,4 @@
+# requirements.txt
+python-dotenv
+kafka-python
+psycopg2-binary

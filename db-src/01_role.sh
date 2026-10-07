@@ -1,0 +1,3 @@
+#!/bin/bash
+set -e
+psql -U "$POSTGRES_USER" -c "CREATE ROLE debezium WITH LOGIN PASSWORD '$DEBEZIUM_PASSWORD' REPLICATION;"
