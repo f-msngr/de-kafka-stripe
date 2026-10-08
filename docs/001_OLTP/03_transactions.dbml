@@ -1,0 +1,207 @@
+// OLTP fraude (PostgreSQL) - voir ADR 0001 et 0002
+// Ce fichier permet de générer le sql d'init de la base 04_init.sql avec dbml2sql
+// S'il faut recréér un nouvea fichiier par ce moyen
+// Il faut modifier certains indexes à la main
+// il faut modifier deux indexes pour les transactions (pending et is_fraud)
+// car dbml2sql ne sait pas générer des indexes conditionnels
+
+
+Enum payments.payment_status {
+  successful
+  failed
+  refunded
+  reversed
+}
+
+Enum payments.review_status {
+  init
+  cleared
+  pending
+  reviewed
+}
+
+// ---------- Référentiels ----------
+
+Table payments.states {
+  state_id int [pk, increment]
+  state    varchar(60) [not null, unique]
+}
+
+Table payments.cities {
+  city_id  int [pk, increment]
+  city     varchar(80) [not null]
+  zip      varchar(10) [not null]
+  city_pop int
+  state_id int [not null]
+
+  indexes {
+    state_id              [name: 'ix_city_state']
+    (city, state_id, zip) [unique, name: 'uq_city_key']
+  }
+}
+
+Table payments.addresses {
+  address_id bigint [pk, increment]
+  street     varchar(120) [not null]
+  lat        numeric(9,6) [not null]
+  long       numeric(9,6) [not null]
+  city_id    int [not null]
+
+  indexes {
+    city_id                     [name: 'ix_addr_city']
+    (street, lat, long, city_id) [unique, name: 'uq_addr_key']
+  }
+}
+
+Table payments.jobs {
+  job_id int [pk, increment]
+  job    varchar(60) [not null, unique]
+}
+
+Table payments.customers {
+  customer_id bigint [pk, increment]
+  first_name  varchar(40) [not null]
+  last_name   varchar(80) [not null]
+  gender      char(1) [not null]
+  dob         date [not null]
+  job_id      int [not null]
+  address_id  bigint [not null]
+
+  indexes {
+    address_id                      [name: 'ix_cust_address']
+    job_id                          [name: 'ix_cust_job']
+    (first_name, last_name, dob)    [unique, name: 'uq_cust_key']
+  }
+}
+
+Table payments.activities {
+  activity_id int [pk, increment]
+  category    varchar(60) [not null, unique]
+}
+
+Table payments.merchants {
+  merchant_id bigint [pk, increment]
+  merchant    varchar(80) [not null, unique]
+
+  indexes {
+    activity_id [name: 'ix_merch_activity']
+  }
+}
+
+Table payments.currencies {
+  currency_id char(3) [pk]
+  currency    varchar(60)
+}
+
+Table payments.analysts {
+  analyst_id int [pk, increment]
+  role       varchar(60)
+}
+
+// ---------- Transactions ----------
+
+Table payments.transactions {
+  transaction_id           bigint        [pk, increment]
+  trans_num                varchar(32)   [unique]
+  transdate_transtime      timestamptz   [not null]
+
+  // buy
+  cc_num                   varchar(20)   [not null]
+  ip_geoloc                varchar(45)
+  device_type              varchar(20)
+
+  // montants et devises (present, receive)
+  amount_presentation      numeric(20,4) [not null]
+  amt                      numeric(20,4) [not null]
+  currency_rate            numeric(20,10) [not null]
+  currency_id_presentation char(3)       [not null]
+  currency_id_received     char(3)       [not null]
+
+  // scoring
+  fraud_score              numeric(6,4)
+  model_version            varchar(40)
+
+  // cycle de vie
+  status                   payments.payment_status [not null]
+  review_status            payments.review_status  [not null]
+  refunded_at              timestamptz
+
+  // review
+  analyst_id               int
+  is_fraud                 boolean
+  verdict_at               timestamptz
+
+  // sell
+  merch_lat                numeric(9,6) [not null]
+  merch_long               numeric(9,6) [not null]
+
+  customer_id              bigint [not null]
+  merchant_id              bigint [not null]
+  activity_id              int [not null]
+
+  indexes {
+    customer_id              [name: 'ix_tx_customer']
+    merchant_id              [name: 'ix_tx_merchant']
+    analyst_id               [name: 'ix_tx_analyst']
+    currency_id_presentation [name: 'ix_tx_ccy_presentation']
+    currency_id_received     [name: 'ix_tx_ccy_received']
+    transdate_transtime      [name: 'ix_tx_datetime']
+    activity_id              [name: 'ix_tx_activity']
+    // Index partiels : DBML n'exprime pas WHERE, à créer en DDL réel :
+    //   CREATE INDEX ix_tx_pending  ON payments.transactions (transaction_id) WHERE review_status = 'pending';
+    //   CREATE INDEX ix_tx_is_fraud ON payments.transactions (transaction_id) WHERE is_fraud;
+    review_status [name: 'ix_tx_pending',  note: 'PARTIEL en DDL : WHERE review_status = pending']
+    is_fraud      [name: 'ix_tx_is_fraud', note: 'PARTIEL en DDL : WHERE is_fraud']
+  }
+
+  checks {
+    `verdict_at IS NULL OR analyst_id IS NOT NULL`  [name: 'ck_tx_verdict_needs_analyst']
+    `analyst_id IS NULL OR is_fraud IS NOT NULL`    [name: 'ck_tx_analyst_needs_verdict']
+    `review_status <> 'init' OR (coalesce(analyst_id, -1) = 0 AND is_fraud IS NOT NULL AND verdict_at IS NOT NULL)` [name: 'ck_tx_init']
+    `review_status <> 'reviewed' OR analyst_id IS NOT NULL` [name: 'ck_tx_reviewed_needs_analyst']
+    `review_status = 'init' OR (fraud_score IS NOT NULL AND model_version IS NOT NULL)` [name: 'ck_tx_scored_unless_init']
+    `refunded_at IS NULL OR status IN ('refunded', 'reversed')` [name: 'ck_tx_refund_status']
+  }
+}
+
+Ref: payments.cities.state_id          > payments.states.state_id
+Ref: payments.addresses.city_id        > payments.cities.city_id
+Ref: payments.customers.address_id     > payments.addresses.address_id
+Ref: payments.customers.job_id         > payments.jobs.job_id
+Ref: payments.transactions.customer_id              > payments.customers.customer_id
+Ref: payments.transactions.merchant_id              > payments.merchants.merchant_id
+Ref: payments.transactions.activity_id              > payments.activities.activity_id
+Ref: payments.transactions.analyst_id               > payments.analysts.analyst_id
+Ref: payments.transactions.currency_id_presentation > payments.currencies.currency_id
+Ref: payments.transactions.currency_id_received     > payments.currencies.currency_id
+
+// ===========================================================
+//  Schéma frauds : journal des rejets, aucune FK (valeurs copiées)
+// ===========================================================
+
+Table frauds.rejects {
+  reject_id                bigint        [pk, increment]
+
+  // client et marchand : identifiants ET valeurs (l'identifiant peut ne désigner aucune ligne de payments après un rollback)
+  customer_id              bigint        [not null]
+  first_name               varchar(40)   [not null]
+  last_name                varchar(80)   [not null]
+  dob                      date          [not null]
+  merchant_id              bigint        [not null]
+  merchant                 varchar(80)   [not null]
+
+  transdate_transtime      timestamptz   [not null]
+  cc_num                   varchar(20)   [not null]
+  ip_geoloc                varchar(45)
+  device_type              varchar(20)
+  amount_presentation      numeric(20,4) [not null]
+  currency_id_presentation char(3)       [not null]
+  fraud_score              numeric(6,4)  [not null]
+  model_version            varchar(40)   [not null]
+
+  indexes {
+    transdate_transtime [name: 'ix_rej_datetime']
+    customer_id         [name: 'ix_rej_customer']
+    merchant_id         [name: 'ix_rej_merchant']
+  }
+}

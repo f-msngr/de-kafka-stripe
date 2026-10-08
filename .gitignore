@@ -14,8 +14,7 @@
 connectors/*
 
 # Docs
-docs/*
-!doc/diagrams
+docs/commands.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -29,3 +28,6 @@ pip_freeze.txt
 
 # Containers' dirs
 db-src/import/import.csv
+.db-target
+.db-target-data
+
