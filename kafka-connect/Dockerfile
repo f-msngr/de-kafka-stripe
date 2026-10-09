@@ -1,4 +1,6 @@
-ARG DEBEZIUM_VERSION
+# Donner une valeur par défaut pour éviter le warning :
+# WARN: InvalidDefaultArgInFrom: Default value for ARG quay.io/debezium/connect:${DEBEZIUM_VERSION} results in empty or invalid base image name
+ARG DEBEZIUM_VERSION=3.6
 
 # Étape 1 : contrôle des plugins. Le build s'arrête ici si un plugin est invalide.
 # Sortie visible dans les logs du build pas dans ceux du conteneur

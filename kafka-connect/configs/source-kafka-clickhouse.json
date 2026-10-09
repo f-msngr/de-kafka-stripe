@@ -1,0 +1,14 @@
+{
+  "connector.class": "com.clickhouse.kafka.connect.ClickHouseSinkConnector",
+  "topics": "${env:TOPIC_PREFIX}.payments.states,${env:TOPIC_PREFIX}.payments.cities,${env:TOPIC_PREFIX}.payments.addresses,${env:TOPIC_PREFIX}.payments.analysts,${env:TOPIC_PREFIX}.payments.currencies,${env:TOPIC_PREFIX}.payments.jobs,${env:TOPIC_PREFIX}.payments.customers,${env:TOPIC_PREFIX}.payments.activities,${env:TOPIC_PREFIX}.payments.merchants,${env:TOPIC_PREFIX}.payments.transactions,${env:TOPIC_PREFIX}.frauds.rejects",
+  "topic2TableMap": "${env:TOPIC_PREFIX}.payments.states=states,${env:TOPIC_PREFIX}.payments.cities=cities,${env:TOPIC_PREFIX}.payments.addresses=addresses,${env:TOPIC_PREFIX}.payments.analysts=analysts,${env:TOPIC_PREFIX}.payments.currencies=currencies,${env:TOPIC_PREFIX}.payments.jobs=jobs,${env:TOPIC_PREFIX}.payments.customers=customers,${env:TOPIC_PREFIX}.payments.activities=activities,${env:TOPIC_PREFIX}.payments.merchants=merchants,${env:TOPIC_PREFIX}.payments.transactions=transactions,${env:TOPIC_PREFIX}.frauds.rejects=rejects",
+  "hostname": "${env:DB_TARGET_HOST}",
+  "port": "${env:DB_TARGET_PORT}",
+  "database": "${env:DB_TARGET_NAME}",
+  "username": "${env:DB_TARGET_USER}",
+  "password": "${env:DB_TARGET_PASSWORD}",
+  "ssl": "false",
+  "transforms": "unwrap",
+  "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+  "transforms.unwrap.add.fields": "source.lsn"
+}

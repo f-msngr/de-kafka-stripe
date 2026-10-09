@@ -66,3 +66,11 @@ Les variables sont dans `.env`, sauf mention contraire.
 
 
 ### Persistance
+
+# Commandes
+
+- relance du projet et reconstruction  des bases + conteneurs
+docker compose up -d --build
+
+- Arrêt des conteneurs + suppression + suppression des volumes nommés
+docker compose down -v --remove-orphans
