@@ -9,6 +9,7 @@
   "database.dbname" : "${env:DB_SRC_NAME}",
   "topic.prefix": "${env:TOPIC_PREFIX}",
   "table.include.list": "${env:SRC_TABLES}",
+  "decimal.handling.mode": "string",
   "slot.name": "${env:DEBEZIUM_SLOT}",
   "publication.name": "${env:DEBEZIUM_PUBLICATION}",
   "publication.autocreate.mode": "disabled",
