@@ -36,6 +36,36 @@ services:
       retries: 30         # On augmente à 30 essais
       start_period: 5m    # 5 minutes d'immunité totale pour laisser l'import se faire tranquillement
 
+  db-target:
+    image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION}
+    container_name: ${PROJECT_NAME}-${SRVC_DBTARGET}
+    ports: ["127.0.0.1:${HOST_DB_TARGET_PORT}:${CTNR_DB_TARGET_PORT}"]
+    environment:
+      CLICKHOUSE_HOST: ${SRVC_DBTARGET}               # Nom libre
+      CLICKHOUSE_PORT: ${CTNR_DB_TARGET_PORT}         # Nom libre
+      CLICKHOUSE_USER: ${DB_TARGET_USER}              # Nom imposé par Clickhouse
+      CLICKHOUSE_PASSWORD: ${DB_TARGET_PASSWORD}      # Nom imposé par Clickhouse
+      CLICKHOUSE_DB: ${DB_TARGET_NAME}                # Nom imposé par Clickhouse
+    volumes:
+      # - ./${SRVC_DBTARGET}/config.d/${SERVER_CONF}.xml:/etc/clickhouse-server/config.d/${SERVER_CONF}.xml:ro  # Non utilisé pour le moment
+      # - ./${SRVC_DBTARGET}/users.d/${USERS_CONF}.xml:/etc/clickhouse-server/users.d/${USERS_CONF}.xml:ro      # Non utilisé pour le moment
+      - ./${SRVC_DBTARGET}/initdb/10_raw_tables.sh:/docker-entrypoint-initdb.d/10_raw_tables.sh:ro          # initialisation de la base avec les scripts montés dans le conteneur
+      - ./${SRVC_DBTARGET}/sql/10_raw_tables_from_dbsrc.sql:/sql/10_raw_tables_from_dbsrc.sql:ro            # Le SQL lu par le script
+      - ${SRVC_DBTARGET}-data:/var/lib/clickhouse    # volume nommé dans la rubrique volumes - persiste sauf si effacé avec docker compose down -v
+    # command: >
+      # postgres -c port=${CTNR_DB_TARGET_PORT}
+    networks:
+      - project-network
+    healthcheck:
+      # CMD-SHELL cf. kafka-broker.healthcheck
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${CTNR_DB_TARGET_PORT}/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    ulimits:                                          # option importante
+      nofile: { soft: 262144, hard: 262144 }
+
   kafka-broker:
     image: quay.io/debezium/kafka:${DEBEZIUM_VERSION}
     container_name: ${PROJECT_NAME}-kafka-broker
@@ -79,9 +109,9 @@ services:
     environment:
       REST_PORT: ${CTNR_CONNECT_PORT}                         # Nom attendu par l'image Debezium Connect si différent de 8083
       GROUP_ID: ${GROUP_ID}
-      CONFIG_STORAGE_TOPIC: ${CONFIG_STORAGE_TOPIC}
-      OFFSET_STORAGE_TOPIC: ${OFFSET_STORAGE_TOPIC}
-      STATUS_STORAGE_TOPIC: ${STATUS_STORAGE_TOPIC}
+      CONFIG_STORAGE_TOPIC: ${CONFIG_STORAGE_TOPIC}           # Topic propre à Kafka pour stocker les infos sur configs
+      OFFSET_STORAGE_TOPIC: ${OFFSET_STORAGE_TOPIC}           # Topic propre à Kafka pour stocker les infos sur offsets
+      STATUS_STORAGE_TOPIC: ${STATUS_STORAGE_TOPIC}           # Topic propre à Kafka pour stocker les infos sur status
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
       CONNECT_TOPIC_CREATION_ENABLE: 'true'                   # Création automatique des topics (côté connect)
       CONNECT_CONFIG_PROVIDERS: 'env'                         # Déclarer le provider "env"
@@ -96,8 +126,8 @@ services:
       DEBEZIUM_SLOT: ${DEBEZIUM_SLOT}
       DEBEZIUM_PUBLICATION: ${DEBEZIUM_PUBLICATION}
       # ENV pour la  base cible
-      SRVC_DBTARGET: ${SRVC_DBTARGET}
-      CTNR_DB_TARGET_PORT: ${CTNR_DB_TARGET_PORT}
+      DB_TARGET_HOST: ${SRVC_DBTARGET}
+      DB_TARGET_PORT: ${CTNR_DB_TARGET_PORT}
       DB_TARGET_USER: ${DB_TARGET_USER}
       DB_TARGET_PASSWORD: ${DB_TARGET_PASSWORD}
       DB_TARGET_NAME: ${DB_TARGET_NAME}
@@ -106,6 +136,8 @@ services:
     depends_on:
       kafka-broker:
         condition: service_healthy
+      db-target:
+        condition: service_healthy        # La DB cible doit être prête avant le sink
     healthcheck:
       # CMD-SHELL cf. kafka-broker.healthcheck
       test: ["CMD-SHELL", "/kafka/check-connectors.sh"]   # On vérifie que le service est bien démarré et qu'il répond aux requêtes HTTP
@@ -113,34 +145,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
-
-  db-target:
-    image: clickhouse/clickhouse-server:${CLICKHOUSE_VERSION}
-    container_name: ${PROJECT_NAME}-${SRVC_DBTARGET}
-    ports: ["127.0.0.1:${HOST_DB_TARGET_PORT}:${CTNR_DB_TARGET_PORT}"]
-    environment:
-      CLICKHOUSE_HOST: ${SRVC_DBTARGET}               # Nom libre
-      CLICKHOUSE_PORT: ${CTNR_DB_TARGET_PORT}         # Nom libre
-      CLICKHOUSE_USER: ${DB_TARGET_USER}              # Nom imposé par Clickhouse
-      CLICKHOUSE_PASSWORD: ${DB_TARGET_PASSWORD}      # Nom imposé par Clickhouse
-      CLICKHOUSE_DB: ${DB_TARGET_NAME}                # Nom imposé par Clickhouse
-    volumes:
-      - ./${SRVC_DBTARGET}/config.d/{SERVER_CONF}.xml:/etc/clickhouse-server/config.d/{SERVER_CONF}.xml:ro
-      - ./${SRVC_DBTARGET}/users.d/{USERS_CONF}.xml:/etc/clickhouse-server/users.d/{USERS_CONF}.xml:ro
-      - .${SRVC_DBTARGET}-data:/var/lib/clickhouse    # volume nommé dans la rubrique volumes - persiste sauf si effacé avec docker compose down -v
-    # command: >
-      # postgres -c port=${CTNR_DB_TARGET_PORT}
-    networks:
-      - project-network
-    healthcheck:
-      # CMD-SHELL cf. kafka-broker.healthcheck
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${CTNR_DB_TARGET_PORT}/ping || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
-    ulimits:                                          # option importante
-      nofile: { soft: 262144, hard: 262144 }
 
   init:           # Initialise le connecteur Debezium
     image: curlimages/curl:latest
@@ -160,7 +164,6 @@ services:
       - ./${SRVC_CONNECT}/configs:/configs
       - ./${SRVC_CONNECT}/scripts/init.sh:/init.sh
     entrypoint: sh /init.sh
-
 
 volumes:
   db-src-data:              # Volume nommé - effacé avec docker compose down -v
