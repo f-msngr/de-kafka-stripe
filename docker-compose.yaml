@@ -165,6 +165,26 @@ services:
       - ./${SRVC_CONNECT}/scripts/init.sh:/init.sh
     entrypoint: sh /init.sh
 
+  zuul:           # ZUUL Gatekeeper service
+    build:
+      context: .
+      dockerfile: ./${SRVC_ZUUL}/Dockerfile
+    image: ${PROJECT_NAME}-${SRVC_ZUUL}-image
+    container_name: ${PROJECT_NAME}-${SRVC_ZUUL}
+    environment:
+      BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
+      INGEST_TOPIC: ${INGEST_TOPIC}
+      CTNR_ZUUL_PORT: ${CTNR_ZUUL_PORT}
+    networks:
+      - project-network
+    ports:
+      - "127.0.0.1:${HOST_ZUUL_PORT}:${CTNR_ZUUL_PORT}"
+    volumes:
+      - ./zuul/src:/home/user/app/src               # allows API hot reload
+      # - ./pipeline:/home/user/app/pipeline          # access pipeline/ functions
+    depends_on:
+      - kafka-broker
+
 volumes:
   db-src-data:              # Volume nommé - effacé avec docker compose down -v
   db-target-data:           # Volume nommé - effacé avec docker compose down -v

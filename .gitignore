@@ -11,7 +11,9 @@
 
 # Conf dir
 #_CONF
-connectors/*
+
+# Data
+data/
 
 # Docs
 docs/commands.md

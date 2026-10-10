@@ -1,4 +1,4 @@
-// OLTP fraude (PostgreSQL) - voir ADR 0001 et 0002
+// OLTP fraude (PostgreSQL) - voir ADR 001 et 002
 // Ce fichier permet de générer le sql d'init de la base 04_init.sql avec dbml2sql
 // S'il faut recréér un nouvea fichiier par ce moyen
 // Il faut modifier certains indexes à la main

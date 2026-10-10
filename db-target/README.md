@@ -12,10 +12,17 @@
 - Se connecter au client dans le conteneur :
   `clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD"`
 
+- Afficher les tables system (depuis le client)
+  `SELECT database, name FROM system.names;`
+
 - Afficher la config spécifique
   `SELECT name, value FROM system.server_settings WHERE name = 'PARAMETRE_SERVEUR'`
 
-# Structure des fichiers de conf
+- Visualiser le schéma de création d'une table dans Clickouse (depuis le client)
+  `DESCRIBE TABLE transactions;`
+  `SHOW CREATE TABLE transactions;`
+
+# Structure des fichiers de conf (non montés dans docker-compose)
 
 ## Dossier de configuration `FICHIER.xml` du server lu et fusionné au démarrage
 

@@ -1,0 +1,14 @@
+# Web framework
+fastapi
+uvicorn
+starlette
+pydantic
+pydantic_core
+
+# Utils
+python-dotenv
+requests
+httpx
+
+# Kafka
+confluent-kafka
