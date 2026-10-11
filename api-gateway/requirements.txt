@@ -11,4 +11,4 @@ requests
 httpx
 
 # Kafka
-confluent-kafka
+kafka-python-ng

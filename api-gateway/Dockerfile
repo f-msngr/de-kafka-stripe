@@ -1,5 +1,13 @@
 FROM python:3.12-slim
 
+
+# Install system dependencies for debugging from within the container
+# curl : needed by healthcheck 
+RUN apt-get update && apt-get install -y \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # ========================================
 # USER CREATION
 # ========================================
@@ -30,11 +38,11 @@ WORKDIR $HOME/app
 
 # requirements
 # copy in WORKDIR
-COPY --chown=user:user ./zuul/requirements.txt ./requirements.txt
+COPY --chown=user:user ./api-gateway/requirements.txt ./requirements.txt
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY --chown=user:user ./zuul/src ./src
+COPY --chown=user:user ./api-gateway/src ./src
 
 # Set environment variables
 ENV PROJECT_ROOT="/app"
@@ -50,4 +58,4 @@ ENV PROJECT_ROOT="/app"
 ENV PYTHONPATH="${HOME}/app"
 
 # --reload pour appliquer les modifs du code en live
-CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port=$CTNR_ZUUL_PORT --reload"]
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port=$CTNR_APIGATEWAY_PORT --reload"]

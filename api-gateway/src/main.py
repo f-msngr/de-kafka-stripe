@@ -6,7 +6,6 @@ from fastapi.openapi.docs import get_swagger_ui_html
 
 from pydantic import BaseModel
 
-
 # ================================================
 # Logging
 # ================================================
@@ -25,6 +24,28 @@ load_dotenv()
 # Give access to env variables
 # project_root_path = os.getenv("PROJECT_ROOT")
 project_dir_name = os.getenv("PROJECT_NAME")
+BOOTSTRAP_SERVERS = os.environ["BOOTSTRAP_SERVERS"]
+
+# ================================================
+# kafka producer creation at API startup
+# ================================================
+from contextlib import asynccontextmanager
+from kafka import KafkaProducer
+import json
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.producer = KafkaProducer(
+        bootstrap_servers=BOOTSTRAP_SERVERS,
+        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+        acks="all",
+        retries=10,
+        retry_backoff_ms=500,
+    )
+    yield
+    # Arrêt : envoie les messages restants puis ferme
+    app.state.producer.close()
+
 
 # ================================================
 # Main app
@@ -32,8 +53,9 @@ project_dir_name = os.getenv("PROJECT_NAME")
 # Set root_path for nginx
 app = FastAPI(
     root_path="/api",
+    lifespan=lifespan,
     title="🛡️ Stripe Fraud detection",
-    description="Fraud Detection Management Tool",
+    description="Fraud Detection Gateway API",
     version="1.0.0"
     )
 

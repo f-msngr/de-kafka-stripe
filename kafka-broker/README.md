@@ -19,13 +19,13 @@
 
 ## Détail d'un topic (partitions, replica) -> `/kafka/bin/kafka-topics.sh`
     
-    /kafka/bin/kafka-topics.sh --bootstrap-server kafka-broker:29092 --describe --topic 02_stripe.ingest.incoming-tnx
-    Topic: 02_stripe.ingest.incoming-tnx	TopicId: uhvcCLRRQqWlQ2wMp5Or6g	PartitionCount: 1	ReplicationFactor: 1	Configs: min.insync.replicas=1,segment.bytes=536870912,retention.ms=86400000,retention.bytes=1073741824
-	Topic: 02_stripe.ingest.incoming-tnx	Partition: 0	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr:
+    /kafka/bin/kafka-topics.sh --bootstrap-server kafka-broker:29092 --describe --topic 02_stripe.incoming-tnx
+    Topic: 02_stripe.incoming-tnx	TopicId: uhvcCLRRQqWlQ2wMp5Or6g	PartitionCount: 1	ReplicationFactor: 1	Configs: min.insync.replicas=1,segment.bytes=536870912,retention.ms=86400000,retention.bytes=1073741824
+	Topic: 02_stripe.incoming-tnx	Partition: 0	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr:
 
 ## Lire les messages -> `/kafka/bin/kafka-console-consumer.sh`
 
-    /kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka-broker:29092 --topic 02_stripe.ingest.incoming-tnx --from-beginning --max-messages 10
+    /kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka-broker:29092 --topic 02_stripe.incoming-tnx --from-beginning --max-messages 10
     The consumer rebalance protocol (KIP-848) is production-ready! Set group.protocol=consumer to try it out. See https://kafka.apache.org/documentation/#consumer_rebalance_protocol
     {"n": 1, "ts": "2026-10-10T16:24:46.269407+00:00"}
     {"n": 2, "ts": "2026-10-10T16:24:46.269946+00:00"}
@@ -41,5 +41,12 @@
 
 ## Nombre de messages -> `/kafka/bin/kafka-get-offsets.sh`
 
-    /kafka/bin/kafka-get-offsets.sh --bootstrap-server kafka-broker:29092 --topic 02_stripe.ingest.incoming-tnx
-    02_stripe.ingest.incoming-tnx:0:10
+    /kafka/bin/kafka-get-offsets.sh --bootstrap-server kafka-broker:29092 --topic 02_stripe.incoming-tnx
+    02_stripe.incoming-tnx:0:10
+
+## Offset atteint pour un groupe sur un topic -> `/kafka/bin/kafka-consumer-groups.sh`
+
+    /kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka-broker:29092 --describe --group group-predict
+
+    GROUP           TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                             HOST            CLIENT-ID
+    group-predict   02_stripe.incoming-tnx 0          -               30107           -               kafka-python-2.2.3-314d7bb6-80a1-4cbf-a850-07dab6e697aa /172.22.0.7     kafka-python-2.2.3

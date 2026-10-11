@@ -137,7 +137,7 @@ services:
       kafka-broker:
         condition: service_healthy
       db-target:
-        condition: service_healthy        # La DB cible doit être prête avant le sink
+        condition: service_healthy                        # La DB cible doit être prête avant le sink
     healthcheck:
       # CMD-SHELL cf. kafka-broker.healthcheck
       test: ["CMD-SHELL", "/kafka/check-connectors.sh"]   # On vérifie que le service est bien démarré et qu'il répond aux requêtes HTTP
@@ -146,7 +146,7 @@ services:
       retries: 10
       start_period: 30s
 
-  init:           # Initialise le connecteur Debezium
+  init:           # Initialise les connecteurs
     image: curlimages/curl:latest
     container_name: ${PROJECT_NAME}-${SRVC_CONNECT}-init
     environment:
@@ -165,25 +165,70 @@ services:
       - ./${SRVC_CONNECT}/scripts/init.sh:/init.sh
     entrypoint: sh /init.sh
 
-  zuul:           # ZUUL Gatekeeper service
+  api-gateway:
     build:
       context: .
-      dockerfile: ./${SRVC_ZUUL}/Dockerfile
-    image: ${PROJECT_NAME}-${SRVC_ZUUL}-image
-    container_name: ${PROJECT_NAME}-${SRVC_ZUUL}
+      dockerfile: ./${SRVC_APIGATEWAY}/Dockerfile
+    image: ${PROJECT_NAME}-${SRVC_APIGATEWAY}-image
+    container_name: ${PROJECT_NAME}-${SRVC_APIGATEWAY}
     environment:
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
-      INGEST_TOPIC: ${INGEST_TOPIC}
-      CTNR_ZUUL_PORT: ${CTNR_ZUUL_PORT}
+      CTNR_APIGATEWAY_PORT: ${CTNR_APIGATEWAY_PORT}
+      TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}                 # Topic for incoming transactions
     networks:
       - project-network
     ports:
-      - "127.0.0.1:${HOST_ZUUL_PORT}:${CTNR_ZUUL_PORT}"
+      - "127.0.0.1:${HOST_APIGATEWAY_PORT}:${CTNR_APIGATEWAY_PORT}"
     volumes:
-      - ./zuul/src:/home/user/app/src               # allows API hot reload
-      # - ./pipeline:/home/user/app/pipeline          # access pipeline/ functions
+      - ./api-gateway/src:/home/user/app/src              # allows API hot reload
+      # - ./pipeline:/home/user/app/pipeline              # access pipeline/ functions
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:${CTNR_APIGATEWAY_PORT}/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
     depends_on:
-      - kafka-broker
+      kafka-broker:
+        condition: service_healthy
+
+  producer-tnx:
+    build:
+      context: ./${SRVC_PRODUCERTNX}
+      dockerfile: ./Dockerfile
+    image: ${PROJECT_NAME}-${SRVC_PRODUCERTNX}-image
+    container_name: ${PROJECT_NAME}-${SRVC_PRODUCERTNX}
+    environment:
+      URL_API: "http://${SRVC_APIGATEWAY}:${CTNR_APIGATEWAY_PORT}"        # Valid in dev mode - needs to be set with API GATEWAY external IP address in prod
+    networks:
+      - project-network
+    volumes:
+      - ./producer-tnx:/home/user/app                     # allows API hot reload
+      # - ./pipeline:/home/user/app/pipeline              # access pipeline/ functions
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      api-gateway:
+        condition: service_healthy
+
+  consumer-tnx:           # worker(s) predict
+    build:
+      context: ./${SRVC_CONSUMERTNX}
+      dockerfile: ./Dockerfile
+    image: ${PROJECT_NAME}-${SRVC_CONSUMERTNX}-image
+    container_name: ${PROJECT_NAME}-${SRVC_CONSUMERTNX}
+    environment:
+      SRVC_CONSUMERTNX: ${SRVC_CONSUMERTNX}
+      BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}             # Le consumer a besoin d"accéder au topic kafka directement
+      TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}
+      GROUP_ID: ${GROUP_ID_CONSUMERTNX}
+    networks:
+      - project-network
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      api-gateway:
+        condition: service_healthy
 
 volumes:
   db-src-data:              # Volume nommé - effacé avec docker compose down -v
