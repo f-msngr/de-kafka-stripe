@@ -14,6 +14,7 @@
 
 # Data
 data/
+db-src/import/import.csv
 
 # Docs
 docs/commands.md
@@ -29,7 +30,9 @@ __pycache__/
 pip_freeze.txt
 
 # Containers' dirs
-db-src/import/import.csv
 .db-target
 .db-target-data
 
+# Local scripts
+monitor.sh
+ROADMAP.md
