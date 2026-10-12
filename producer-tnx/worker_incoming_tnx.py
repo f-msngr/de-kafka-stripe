@@ -29,7 +29,8 @@ from datetime import datetime, timezone
 
 def build_tnx() -> dict:
     """Seule fonction à modifier quand le contenu de la transaction évolue."""
-    return {"uuid": str(uuid.uuid4()), "ts": datetime.now(timezone.utc).isoformat()}
+    #return {"uuid": str(uuid.uuid4()), "ts": datetime.now(timezone.utc).isoformat()}
+    return {"uuid": str(uuid.uuid4()), "ts": "BOUM"}
 
 # ============================================
 # POST
@@ -64,7 +65,7 @@ async def post_many_tnx(client: httpx.AsyncClient, l_tnx: list[dict]) -> list[bo
 
 async def main():
     async with httpx.AsyncClient(timeout=10) as client:   # créé une fois, fermé à la fin
-        l_tnx = [build_tnx() for _ in range(20)]
+        l_tnx = [build_tnx() for _ in range(30)]
         results = await post_many_tnx(client, l_tnx)
     logger.info(f"🌠 {sum(results)}/{len(results)} transactions acceptées")
 

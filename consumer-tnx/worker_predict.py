@@ -44,8 +44,8 @@ consumer = KafkaConsumer(
     TOPIC_INCOMING_TNX,
     bootstrap_servers=BOOTSTRAP_SERVERS,
     group_id=GROUP_ID,
-    enable_auto_commit=False,          # on valide la position nous-mêmes, après traitement
-    auto_offset_reset="earliest",
+    enable_auto_commit=False,           # On valide la position nous-mêmes, après traitement
+    auto_offset_reset="earliest",       # Un redémarrage du consumer relit tout le topic depuis le début
     value_deserializer=lambda b: json.loads(b.decode("utf-8")),
 )
 
@@ -57,3 +57,4 @@ for elt in consumer:
     payload = {"uuid": tnx["uuid"], "ts": tnx["ts"]}
     logger.info(f"🟢 Elt courant : {payload}")
 
+    consumer.commit()

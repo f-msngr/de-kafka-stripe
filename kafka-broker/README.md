@@ -1,3 +1,5 @@
+# Topics
+
 ## Visualiser les topics -> `/kafka/bin/kafka-topics.sh`
     /kafka/bin/kafka-topics.sh --bootstrap-server kafka-broker:29092 --list
     02_stripe-connect_configs
@@ -23,6 +25,22 @@
     Topic: 02_stripe.incoming-tnx	TopicId: uhvcCLRRQqWlQ2wMp5Or6g	PartitionCount: 1	ReplicationFactor: 1	Configs: min.insync.replicas=1,segment.bytes=536870912,retention.ms=86400000,retention.bytes=1073741824
 	Topic: 02_stripe.incoming-tnx	Partition: 0	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr:
 
+## Modifier le nombre de partitions pour un topic -> `/kafka/bin/kafka-topics.sh ` OPTIONS `--alter --topic <NOM> --partitions <N>`
+
+    /kafka/bin/kafka-topics.sh --bootstrap-server kafka-broker:29092 --alter --topic 02_stripe.incoming-tnx --partitions 3
+
+## Détail d'un topic - nombre de partitions modifié
+
+    /kafka/bin/kafka-topics.sh --bootstrap-server kafka-broker:29092 --describe --topic 02_stripe.incoming-tnx
+    Topic: 02_stripe.incoming-tnx	TopicId: VOpcQkzVQa6xuBPZeffYTw	PartitionCount: 3	ReplicationFactor: 1	Configs: min.insync.replicas=1,segment.bytes=536870912,retention.ms=86400000,retention.bytes=1073741824
+        Topic: 02_stripe.incoming-tnx	Partition: 0	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr: 
+        Topic: 02_stripe.incoming-tnx	Partition: 1	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr: 
+        Topic: 02_stripe.incoming-tnx	Partition: 2	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr: 
+
+---
+
+# Messages
+
 ## Lire les messages -> `/kafka/bin/kafka-console-consumer.sh`
 
     /kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka-broker:29092 --topic 02_stripe.incoming-tnx --from-beginning --max-messages 10
@@ -44,9 +62,13 @@
     /kafka/bin/kafka-get-offsets.sh --bootstrap-server kafka-broker:29092 --topic 02_stripe.incoming-tnx
     02_stripe.incoming-tnx:0:10
 
-## Offset atteint pour un groupe sur un topic -> `/kafka/bin/kafka-consumer-groups.sh`
+---
+
+# Groupe de consommateurs
+
+    ## Offset atteint pour un groupe sur un topic -> `/kafka/bin/kafka-consumer-groups.sh`
 
     /kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka-broker:29092 --describe --group group-predict
 
     GROUP           TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                             HOST            CLIENT-ID
-    group-predict   02_stripe.incoming-tnx 0          -               30107           -               kafka-python-2.2.3-314d7bb6-80a1-4cbf-a850-07dab6e697aa /172.22.0.7     kafka-python-2.2.3
+    group-predict   02_stripe.incoming-tnx 0          30107           30107           0               kafka-python-2.2.3-4ed8be1b-bffe-4e40-aece-d0b541c1cbdd /172.22.0.7     kafka-python-2.2.3

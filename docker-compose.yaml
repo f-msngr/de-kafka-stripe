@@ -146,7 +146,7 @@ services:
       retries: 10
       start_period: 30s
 
-  init:           # Initialise les connecteurs
+  kafka-init-connectors:           # Initialise les connecteurs
     image: curlimages/curl:latest
     container_name: ${PROJECT_NAME}-${SRVC_CONNECT}-init
     environment:
@@ -164,6 +164,20 @@ services:
       - ./${SRVC_CONNECT}/configs:/configs
       - ./${SRVC_CONNECT}/scripts/init.sh:/init.sh
     entrypoint: sh /init.sh
+
+  kafka-init-topics:                # Initialise les topics
+    image: quay.io/debezium/kafka:${DEBEZIUM_VERSION}
+    environment:
+      BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
+      TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}
+      PARTITIONS_TOPIC_INCOMING_TNX: ${PARTITIONS_TOPIC_INCOMING_TNX}
+    networks:
+      - project-network
+    entrypoint: ["/kafka/bin/kafka-topics.sh"]
+    command: ["--bootstrap-server", "${BOOTSTRAP_SERVERS}", "--create", "--if-not-exists", "--topic", "${TOPIC_INCOMING_TNX}", "--partitions", "${PARTITIONS_TOPIC_INCOMING_TNX}", "--replication-factor", "1"]
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
 
   api-gateway:
     build:
@@ -191,6 +205,8 @@ services:
     depends_on:
       kafka-broker:
         condition: service_healthy
+      kafka-init-topics:
+        condition: service_completed_successfully
 
   producer-tnx:
     build:
@@ -216,7 +232,9 @@ services:
       context: ./${SRVC_CONSUMERTNX}
       dockerfile: ./Dockerfile
     image: ${PROJECT_NAME}-${SRVC_CONSUMERTNX}-image
-    container_name: ${PROJECT_NAME}-${SRVC_CONSUMERTNX}
+    # container_name: ${PROJECT_NAME}-${SRVC_CONSUMERTNX}     # On supprime container-name pour permettre le scaling par docker compose : --scale <NOM_DU_SERVICE>=3
+    deploy:
+      replicas: ${REPLICAS_CONSUMERTNX}
     environment:
       SRVC_CONSUMERTNX: ${SRVC_CONSUMERTNX}
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}             # Le consumer a besoin d"accéder au topic kafka directement
