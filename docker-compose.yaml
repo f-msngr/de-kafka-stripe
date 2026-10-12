@@ -216,6 +216,7 @@ services:
     container_name: ${PROJECT_NAME}-${SRVC_PRODUCERTNX}
     environment:
       URL_API: "http://${SRVC_APIGATEWAY}:${CTNR_APIGATEWAY_PORT}"        # Valid in dev mode - needs to be set with API GATEWAY external IP address in prod
+      URL_FEED: ${URL_FEED_PRODUCERTNX}                                   # URL du csv de transactions depuis S3 - lu en batch par le worker
     networks:
       - project-network
     volumes:

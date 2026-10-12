@@ -27,7 +27,6 @@ RUN pip install --no-cache-dir -r ./requirements.txt
 
 COPY --chown=user:user ./worker_incoming_tnx.py .
 
-
 # ========================================
 # PYTHON PATH
 # ========================================

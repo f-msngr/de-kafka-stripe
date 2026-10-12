@@ -38,9 +38,10 @@ async def lifespan(app: FastAPI):
     app.state.producer = KafkaProducer(
         bootstrap_servers=BOOTSTRAP_SERVERS,
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-        acks="all",
+        acks="all", # recommandé pour l'idempotence
         retries=10,
         retry_backoff_ms=500,
+        # paramètre enable_idempotence est configuré sur True par défaut.
     )
     yield
     # Arrêt : envoie les messages restants puis ferme
