@@ -241,6 +241,15 @@ services:
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}             # Le consumer a besoin d"accéder au topic kafka directement
       TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}
       GROUP_ID: ${GROUP_ID_CONSUMERTNX}
+      FRAUD_THRESHOLD: ${FRAUD_THRESHOLD}
+      # Connexion à db-src
+      DB_SRC_HOST: ${SRVC_DBSRC}
+      DB_SRC_PORT: ${CTNR_DB_SRC_PORT}
+      DB_SRC_USER: ${DB_SRC_USER}
+      DB_SRC_PASSWORD: ${DB_SRC_PASSWORD}
+      DB_SRC_NAME: ${DB_SRC_NAME}
+      DB_SRC_SCHEMA_1: ${DB_SRC_SCHEMA_1}               # payments
+      DB_SRC_SCHEMA_2: ${DB_SRC_SCHEMA_2}               # frauds
     networks:
       - project-network
     depends_on:
@@ -248,6 +257,8 @@ services:
         condition: service_healthy
       api-gateway:
         condition: service_healthy
+      db-src:
+        condition: service_healthy    # écriture dans db-src
 
 volumes:
   db-src-data:              # Volume nommé - effacé avec docker compose down -v

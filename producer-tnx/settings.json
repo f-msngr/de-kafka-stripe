@@ -1,1 +1,1 @@
-{"batch_size": 2, "fraud_percent": 50}
+{"batch_size": 20, "fraud_percent": 5}  

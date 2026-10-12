@@ -3,3 +3,6 @@ python-dotenv
 
 # Kafka
 kafka-python-ng
+
+# Postgres
+psycopg[binary]
