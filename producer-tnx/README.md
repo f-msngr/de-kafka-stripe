@@ -3,5 +3,5 @@ lien feed.csv :
 
 utilisation du producer :
 contrôle du débit et du taux de fraude synthétique via 
-cf. `./feedctrl.sh start|halt`
+cf. `./feedctl.sh start|halt`
 modification des paramètres à chaud dans `settings.json`
