@@ -108,7 +108,7 @@ services:
     ports: ["127.0.0.1:${HOST_CONNECT_PORT}:${CTNR_CONNECT_PORT}"]           # défaut : "8083:8083"
     environment:
       REST_PORT: ${CTNR_CONNECT_PORT}                         # Nom attendu par l'image Debezium Connect si différent de 8083
-      GROUP_ID: ${GROUP_ID}
+      GROUP_ID: ${GROUP_ID_CONNECT}
       CONFIG_STORAGE_TOPIC: ${CONFIG_STORAGE_TOPIC}           # Topic propre à Kafka pour stocker les infos sur configs
       OFFSET_STORAGE_TOPIC: ${OFFSET_STORAGE_TOPIC}           # Topic propre à Kafka pour stocker les infos sur offsets
       STATUS_STORAGE_TOPIC: ${STATUS_STORAGE_TOPIC}           # Topic propre à Kafka pour stocker les infos sur status
@@ -125,7 +125,7 @@ services:
       SRC_TABLES: ${SRC_TABLES_CONNECT}
       DEBEZIUM_SLOT: ${DEBEZIUM_SLOT}
       DEBEZIUM_PUBLICATION: ${DEBEZIUM_PUBLICATION}
-      # ENV pour la  base cible
+      # ENV pour la db-target
       DB_TARGET_HOST: ${SRVC_DBTARGET}
       DB_TARGET_PORT: ${CTNR_DB_TARGET_PORT}
       DB_TARGET_USER: ${DB_TARGET_USER}
@@ -165,7 +165,7 @@ services:
       - ./${SRVC_CONNECT}/scripts/init.sh:/init.sh
     entrypoint: sh /init.sh
 
-  kafka-init-topics:                # Initialise les topics
+  kafka-init-topics:                # Initialise les topics (autres que ceux pour le DCD debezium)
     image: quay.io/debezium/kafka:${DEBEZIUM_VERSION}
     environment:
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}

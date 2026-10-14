@@ -29,7 +29,7 @@ C4Container
     Container(prod, "producer-tnx", "Python, httpx", "Lit feed.csv par lots, injecte la fraude synthétique, envoie à l'API")
     Container(api, "api-gateway", "FastAPI, uvicorn", "Seul écrivain du topic : POST /ingest, répond 202 ou 503")
     ContainerQueue(kafka, "kafka-broker", "Kafka KRaft, 1 nœud", "Topic 02_stripe.incoming-tnx + topics Debezium")
-    Container(cons, "consumer-tnx", "Python, kafka-python-ng", "Groupe group-predict, score factice, écrit dans l'OLTP, N réplicas")
+    Container(cons, "consumer-tnx", "Python, kafka-python-ng", "Groupe predict-group, score factice, écrit dans l'OLTP, N réplicas")
     ContainerDb(src, "db-src (OLTP)", "PostgreSQL 18", "Schémas payments et frauds, wal_level=logical")
     Container(conn, "kafka-connect", "Debezium source + ClickHouse sink v1.7.0", "Réplication CDC de l'OLTP vers l'OLAP")
     ContainerDb(tgt, "db-target (OLAP)", "ClickHouse", "Tables brutes ReplacingMergeTree")

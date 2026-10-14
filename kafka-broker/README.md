@@ -19,11 +19,6 @@
     02_stripe.payments.transactions
     __consumer_offsets
 
-## Détail d'un topic (partitions, replica) -> `/kafka/bin/kafka-topics.sh`
-    
-    /kafka/bin/kafka-topics.sh --bootstrap-server kafka-broker:29092 --describe --topic 02_stripe.incoming-tnx
-    Topic: 02_stripe.incoming-tnx	TopicId: uhvcCLRRQqWlQ2wMp5Or6g	PartitionCount: 1	ReplicationFactor: 1	Configs: min.insync.replicas=1,segment.bytes=536870912,retention.ms=86400000,retention.bytes=1073741824
-	Topic: 02_stripe.incoming-tnx	Partition: 0	Leader: 1	Replicas: 1	Isr: 1	Elr: 	LastKnownElr:
 
 ## Modifier le nombre de partitions pour un topic -> `/kafka/bin/kafka-topics.sh ` OPTIONS `--alter --topic <NOM> --partitions <N>`
 
@@ -68,7 +63,7 @@
 
     ## Offset atteint pour un groupe sur un topic -> `/kafka/bin/kafka-consumer-groups.sh`
 
-    /kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka-broker:29092 --describe --group group-predict
+    /kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka-broker:29092 --describe --group predict-group
 
     GROUP           TOPIC                  PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                             HOST            CLIENT-ID
-    group-predict   02_stripe.incoming-tnx 0          30107           30107           0               kafka-python-2.2.3-4ed8be1b-bffe-4e40-aece-d0b541c1cbdd /172.22.0.7     kafka-python-2.2.3
+    predict-group   02_stripe.incoming-tnx 0          30107           30107           0               kafka-python-2.2.3-4ed8be1b-bffe-4e40-aece-d0b541c1cbdd /172.22.0.7     kafka-python-2.2.3
