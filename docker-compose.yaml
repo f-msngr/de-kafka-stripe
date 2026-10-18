@@ -26,7 +26,7 @@ services:
       -c max_slot_wal_keep_size=10GB
       -c max_replication_slots=5
     networks:
-      - project-network
+      - stripe-network
     healthcheck:
       # CMD-SHELL cf. kafka.healthcheck
       # Prévoir la modification du port par défaut
@@ -55,7 +55,7 @@ services:
     # command: >
       # postgres -c port=${CTNR_DB_TARGET_PORT}
     networks:
-      - project-network
+      - stripe-network
     healthcheck:
       # CMD-SHELL cf. kafka-broker.healthcheck
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${CTNR_DB_TARGET_PORT}/ping || exit 1"]
@@ -85,7 +85,7 @@ services:
       KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000  # vérif toutes les 5min
       KAFKA_LOG_SEGMENT_BYTES: 536870912      # segments de 512MB
     networks:
-      - project-network
+      - stripe-network
     healthcheck:
       # On a besoin de connaître le path des scripts de l'image Debezium pour le healthcheck
       # On localise les scripts avec docker run --rm --entrypoint sh quay.io/debezium/kafka:3.6 -c 'find / -name "kafka-broker-api-versions*" 2>/dev/null'
@@ -132,7 +132,7 @@ services:
       DB_TARGET_PASSWORD: ${DB_TARGET_PASSWORD}
       DB_TARGET_NAME: ${DB_TARGET_NAME}
     networks:
-      - project-network
+      - stripe-network
     depends_on:
       kafka-broker:
         condition: service_healthy
@@ -154,7 +154,7 @@ services:
       CTNR_CONNECT_PORT: ${CTNR_CONNECT_PORT}
       PROJECT_NAME: ${PROJECT_NAME}
     networks:
-      - project-network
+      - stripe-network
     depends_on:
       kafka-connect:
         condition: service_healthy
@@ -172,7 +172,7 @@ services:
       TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}
       PARTITIONS_TOPIC_INCOMING_TNX: ${PARTITIONS_TOPIC_INCOMING_TNX}
     networks:
-      - project-network
+      - stripe-network
     entrypoint: ["/kafka/bin/kafka-topics.sh"]
     command: ["--bootstrap-server", "${BOOTSTRAP_SERVERS}", "--create", "--if-not-exists", "--topic", "${TOPIC_INCOMING_TNX}", "--partitions", "${PARTITIONS_TOPIC_INCOMING_TNX}", "--replication-factor", "1"]
     depends_on:
@@ -190,7 +190,7 @@ services:
       CTNR_APIGATEWAY_PORT: ${CTNR_APIGATEWAY_PORT}
       TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}                 # Topic for incoming transactions
     networks:
-      - project-network
+      - stripe-network
     ports:
       - "127.0.0.1:${HOST_APIGATEWAY_PORT}:${CTNR_APIGATEWAY_PORT}"
     volumes:
@@ -218,7 +218,7 @@ services:
       URL_API: "http://${SRVC_APIGATEWAY}:${CTNR_APIGATEWAY_PORT}"        # Valid in dev mode - needs to be set with API GATEWAY external IP address in prod
       URL_FEED: ${URL_FEED_PRODUCERTNX}                                   # URL du csv de transactions depuis S3 - lu en batch par le worker
     networks:
-      - project-network
+      - stripe-network
     volumes:
       - ./producer-tnx:/home/user/app                     # allows API hot reload
       # - ./pipeline:/home/user/app/pipeline              # access pipeline/ functions
@@ -251,7 +251,7 @@ services:
       DB_SRC_SCHEMA_1: ${DB_SRC_SCHEMA_1}               # payments
       DB_SRC_SCHEMA_2: ${DB_SRC_SCHEMA_2}               # frauds
     networks:
-      - project-network
+      - stripe-network
     depends_on:
       kafka-broker:
         condition: service_healthy
@@ -260,10 +260,32 @@ services:
       db-src:
         condition: service_healthy    # écriture dans db-src
 
+  dbt:
+    build:
+      context: ./${SRVC_DBT}
+      dockerfile: ./Dockerfile
+      #pull_policy: build
+    image: ${PROJECT_NAME}-${SRVC_DBT}-image
+    container_name: ${PROJECT_NAME}-${SRVC_DBT}
+    environment:
+      CLICKHOUSE_HOST: ${SRVC_DBTARGET}               # Nom libre
+      CLICKHOUSE_PORT: ${CTNR_DB_TARGET_PORT}         # Nom libre
+      CLICKHOUSE_USER: ${DB_TARGET_USER}              # Nom imposé par Clickhouse
+      CLICKHOUSE_PASSWORD: ${DB_TARGET_PASSWORD}      # Nom imposé par Clickhouse
+      CLICKHOUSE_DB: ${DB_TARGET_NAME}
+    volumes:
+      - ./${SRVC_DBT}/project:/home/user/app
+    networks:
+      - stripe-network
+    depends_on:
+      db-target:
+        condition: service_healthy 
+
+
 volumes:
   db-src-data:              # Volume nommé - effacé avec docker compose down -v
   db-target-data:           # Volume nommé - effacé avec docker compose down -v
 
 networks:
-  project-network:
+  stripe-network:
     name: ${PROJECT_NAME}
