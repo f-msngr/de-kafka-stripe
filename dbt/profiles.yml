@@ -1,0 +1,11 @@
+stripe_olap:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      schema: "{{ env_var('CLICKHOUSE_DB') }}"    # ClickHouse database for dbt models
+      host: "{{ env_var('CLICKHOUSE_HOST') }}"
+      port: "{{ env_var('CLICKHOUSE_PORT') | as_number }}"          # Defaults to 8123, 844 (https), 9000, 9440 depending on the secure and driver settings
+      user: "{{ env_var('CLICKHOUSE_USER') }}"          # User for all database operations
+      password: "{{ env_var('CLICKHOUSE_PASSWORD') }}"  # Password for the user
+      secure: False  # Ne pas utiliser TLS or HTTPS car les serveurs ne sont pas configurés pour négocier certificat ET ils communiquent sur le réseau docker interne

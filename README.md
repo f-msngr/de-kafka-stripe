@@ -25,7 +25,7 @@ C4Container
   Person(op, "Opérateur (Fab)", "")
   System_Ext(s3, "Pool S3", "feed.csv")
 
-  System_Boundary(plat, "Plateforme de détection de fraude (docker compose, project-network)") {
+  System_Boundary(plat, "Plateforme de détection de fraude (docker compose, stripe-network)") {
     Container(prod, "producer-tnx", "Python, httpx", "Lit feed.csv par lots, injecte la fraude synthétique, envoie à l'API")
     Container(api, "api-gateway", "FastAPI, uvicorn", "Seul écrivain du topic : POST /ingest, répond 202 ou 503")
     ContainerQueue(kafka, "kafka-broker", "Kafka KRaft, 1 nœud", "Topic 02_stripe.incoming-tnx + topics Debezium")
