@@ -1,0 +1,8 @@
+# Web framework
+fastapi
+uvicorn
+
+
+# dbt
+dbt-core
+dbt-clickhouse

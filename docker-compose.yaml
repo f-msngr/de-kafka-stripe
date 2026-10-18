@@ -185,19 +185,20 @@ services:
       dockerfile: ./${SRVC_APIGATEWAY}/Dockerfile
     image: ${PROJECT_NAME}-${SRVC_APIGATEWAY}-image
     container_name: ${PROJECT_NAME}-${SRVC_APIGATEWAY}
+    ports:
+      - "127.0.0.1:${HOST_APIGATEWAY_PORT}:${CTNR_APIGATEWAY_PORT}"
     environment:
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
       CTNR_APIGATEWAY_PORT: ${CTNR_APIGATEWAY_PORT}
       TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}                 # Topic for incoming transactions
     networks:
       - stripe-network
-    ports:
-      - "127.0.0.1:${HOST_APIGATEWAY_PORT}:${CTNR_APIGATEWAY_PORT}"
     volumes:
       - ./api-gateway/src:/home/user/app/src              # allows API hot reload
       # - ./pipeline:/home/user/app/pipeline              # access pipeline/ functions
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:${CTNR_APIGATEWAY_PORT}/"]
+      # healthcheck s'execute par curl dans le conteneur donc pas besoin d'exposer un port
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:${CTNR_APIGATEWAY_PORT}/health"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -260,23 +261,34 @@ services:
       db-src:
         condition: service_healthy    # écriture dans db-src
 
-  dbt:
+  api-dbt:
     build:
-      context: ./${SRVC_DBT}
+      context: ./${SRVC_APIDBT}
       dockerfile: ./Dockerfile
       #pull_policy: build
-    image: ${PROJECT_NAME}-${SRVC_DBT}-image
-    container_name: ${PROJECT_NAME}-${SRVC_DBT}
+    image: ${PROJECT_NAME}-${SRVC_APIDBT}-image
+    container_name: ${PROJECT_NAME}-${SRVC_APIDBT}
     environment:
-      CLICKHOUSE_HOST: ${SRVC_DBTARGET}               # Nom libre
-      CLICKHOUSE_PORT: ${CTNR_DB_TARGET_PORT}         # Nom libre
-      CLICKHOUSE_USER: ${DB_TARGET_USER}              # Nom imposé par Clickhouse
-      CLICKHOUSE_PASSWORD: ${DB_TARGET_PASSWORD}      # Nom imposé par Clickhouse
+      HOST_APIDBT_PORT: ${HOST_APIDBT_PORT}
+      CTNR_APIDBT_PORT: ${CTNR_APIDBT_PORT}
+      CLICKHOUSE_HOST: ${SRVC_DBTARGET}               # Nom libre - même nom que pour dbt-target
+      CLICKHOUSE_PORT: ${CTNR_DB_TARGET_PORT}         # Nom libre - même nom que pour dbt-target
+      CLICKHOUSE_USER: ${DB_TARGET_USER}              # même nom que pour dbt-targetNom imposé par Clickhouse
+      CLICKHOUSE_PASSWORD: ${DB_TARGET_PASSWORD}      # même nom que pour dbt-target
       CLICKHOUSE_DB: ${DB_TARGET_NAME}
     volumes:
-      - ./${SRVC_DBT}/project:/home/user/app
+      - ./${SRVC_APIDBT}/project/stripe_olap:/home/user/app/stripe_olap/          # project = nom du rep local choisi pour le dossier monté dans le conteneur pour copie des fichiers dans <DBT_DB_IN_WAREHOUSE> pour un setup équivalent à dbt init <DBT_PROJECT>
+      - ./${SRVC_APIDBT}/project/logs:/home/user/app/logs/
+      - ./${SRVC_APIDBT}/src/:/home/user/app/src             # monter le rep src/ dans app/
     networks:
       - stripe-network
+    healthcheck:
+      # healthcheck s'execute par curl dans le conteneur donc pas besoin d'exposer un port
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:${CTNR_APIDBT_PORT}/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
     depends_on:
       db-target:
         condition: service_healthy 

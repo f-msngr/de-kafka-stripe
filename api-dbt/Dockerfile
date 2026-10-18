@@ -10,9 +10,9 @@ RUN useradd -m -u 1000 user
 #    build-base \
 #    libffi-dev
 
-# Ajout de Git
+# Ajouts
 RUN apt-get update && \
-    apt-get install -y git && \
+    apt-get install -y git curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Évite que Python n'écrive des fichiers .pyc sur le disque
@@ -41,15 +41,22 @@ COPY --chown=user:user ./requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
+# ======================
+# DBT
+# ======================
 # profiles.yml
 COPY --chown=user:user ./profiles.yml $HOME/.dbt/profiles.yml
-
-# ======================
-# COPIE DU PROJECT
-# ======================
 # En local, <host>/project est un bind mount
 # En déploiement, il faut copier le contenu du rep dans app/
 COPY --chown=user:user ./project/ $HOME/app/
+
+
+# ======================
+# API
+# ======================
+# Copie du contenu de src dans le rep src du conteneur
+COPY --chown=user:user ./src ./src
+
 
 # ======================
 # START SCRIPT
@@ -67,5 +74,5 @@ RUN chmod +x $HOME/start.sh
 # Make ~/app/<PROJECT_LIBS> visible from within ~/app/src/*.py
 ENV PYTHONPATH="${HOME}/app"
 
-# Commande par défaut (à adapter selon le script ou dbt)
-CMD ["/home/user/start.sh"]
+# sh -c ouvre un shell qui est remplacé par exec par start.sh
+CMD ["sh", "-c", "exec \"$HOME/start.sh\""]

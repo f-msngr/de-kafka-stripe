@@ -55,14 +55,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     root_path="/api",
     lifespan=lifespan,
-    title="🛡️ Stripe Fraud detection",
+    title="⚠️ Stripe Fraud detection",
     description="Fraud Detection Gateway API",
     version="1.0.0"
     )
 
 @app.get("/")
 def read_root():
-    return {"message": "Zuul the Gatekeeper -> Opening the path for Gozer 👻"}
+    return {"message": "👻 Gateway service -> Zuul is opening the path for Gozer"}
 
 # ================================================
 # Health

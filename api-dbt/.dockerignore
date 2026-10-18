@@ -1,0 +1,4 @@
+project/logs/
+project/stripe_olap/logs/
+project/stripe_olap/target/
+project/stripe_olap/dbt_packages/
