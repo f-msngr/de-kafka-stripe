@@ -56,6 +56,7 @@ COPY --chown=user:user ./project/ $HOME/app/
 # ======================
 # Copie du contenu de src dans le rep src du conteneur
 COPY --chown=user:user ./src ./src
+COPY --chown=user:user ./run_status ./run_status
 
 
 # ======================
