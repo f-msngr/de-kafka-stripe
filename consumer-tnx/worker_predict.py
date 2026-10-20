@@ -64,14 +64,16 @@ SQL_MERCHANT = q("""INSERT INTO {s1}.merchants (merchant) VALUES (%s)
 ON CONFLICT (merchant) DO UPDATE SET merchant = EXCLUDED.merchant RETURNING merchant_id""")
 SQL_TRANSACTION = q("""INSERT INTO {s1}.transactions
 (trans_num, transdate_transtime, cc_num, amount_presentation, amt, currency_rate,
- currency_id_presentation, currency_id_received, fraud_score, model_version, status, review_status,
+ currency_id_presentation, currency_id_received, fraud_score, model_version, status, review_status, is_fraud,
  merch_lat, merch_long, customer_id, merchant_id, activity_id)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'successful', 'cleared', %s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'successful', 'cleared', false, %s, %s, %s, %s, %s)
 ON CONFLICT (trans_num) DO NOTHING""")
 SQL_REJECT = q("""INSERT INTO {s2}.rejects
-(customer_id, first_name, last_name, dob, merchant_id, merchant, transdate_transtime, cc_num,
- amount_presentation, currency_id_presentation, fraud_score, model_version)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""")
+(trans_num, customer_id, first_name, last_name, dob, merchant_id, merchant, activity_id,
+ transdate_transtime, cc_num, amount_presentation, currency_id_presentation, amt,
+ merch_lat, merch_long, fraud_score, model_version)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (trans_num) DO NOTHING""")
 
 def connect() -> psycopg.Connection:
     """Se connecte à db-src ; réessaie tant que la base est injoignable."""
@@ -101,10 +103,11 @@ def write_tnx(conn: psycopg.Connection, p: dict) -> str:
         merchant_id = one(cur, SQL_MERCHANT, (p["merchant"],))
         amt = round(p["amt"], 4)
         if p["fraud_score"] >= FRAUD_THRESHOLD:       # jamais dans payments.transactions (ADR_001-003)
-            cur.execute(SQL_REJECT, (customer_id, p["first"], p["last"], p["dob"], merchant_id, p["merchant"],
-                                     p["trans_date_trans_time"], p["cc_num"], amt, CURRENCY,
-                                     p["fraud_score"], MODEL_VERSION))
-            return "reject"
+            cur.execute(SQL_REJECT, (p["trans_num"], customer_id, p["first"], p["last"], p["dob"],
+                                     merchant_id, p["merchant"], activity_id,
+                                     p["trans_date_trans_time"], p["cc_num"], amt, CURRENCY, amt,
+                                     p["merch_lat"], p["merch_long"], p["fraud_score"], MODEL_VERSION))
+            return "reject" if cur.rowcount == 1 else "duplicate"
         cur.execute(SQL_TRANSACTION, (p["trans_num"], p["trans_date_trans_time"], p["cc_num"], amt, amt,
                                       CURRENCY_RATE, CURRENCY, CURRENCY, p["fraud_score"], MODEL_VERSION,
                                       p["merch_lat"], p["merch_long"], customer_id, merchant_id, activity_id))
