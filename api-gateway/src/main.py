@@ -78,3 +78,11 @@ app.include_router(health_router)
 # Include router
 from .route_ingest import ingest_router
 app.include_router(ingest_router)
+
+
+# ================================================
+# DBT
+# ================================================
+# Include router
+from .route_dbt import dbt_router
+app.include_router(dbt_router)

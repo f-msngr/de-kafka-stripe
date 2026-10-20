@@ -24,6 +24,9 @@ app = FastAPI(
     version="1.0.0"
     )
 
+# ================================================
+# ENDPOINTS : /, /health
+# ================================================
 @app.get("/")
 async def get_root():
     return {"message": "🦫 DBT service -> Working class hero"}
@@ -50,7 +53,7 @@ PROJECT_DIR = os.environ["DBT_PROJECT_DIR"]       # Relative path to status.json
 # pour éviter que Python supprime les subprocess
 s_tasks = set()
 
-
+# Suivi temporel des runs
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -65,10 +68,11 @@ def _load_status() -> dict | None:
 
 # Eviter une éventuelle lecture du fichier
 # pendant l'écriture par un autre processus
-def _save_status(d_status: dict) -> None:           # écriture atomique : fichier temporaire, puis remplacement
+def _save_status(d_status: dict) -> dict:           # écriture atomique : fichier temporaire, puis remplacement
     tmp = STATUS.with_suffix(".tmp")
     tmp.write_text(json.dumps(d_status), encoding="utf-8") # dict transformé en string 
     os.replace(tmp, STATUS)
+    return d_status
 
 # =====================
 # API INIT
@@ -104,7 +108,7 @@ async def _launch_task(run_id: str, started_at: str) -> None:
     """
     # status = failed par défaut
     status = "failed"
-    start_time = time.monotonic()
+    start_time = time.monotonic()   # Horloge monotone de Python
     
     try:
         # Définir un processus non bloquant
@@ -125,9 +129,10 @@ async def _launch_task(run_id: str, started_at: str) -> None:
             "finished_at": _now(),
             "duration_s": round(time.monotonic() - start_time, 1),
             })
-    
-    
 
+# ================================================
+# ENDPOINTS : /run, /runs/{id}
+# ================================================
 @app.post("/run", status_code=202)
 async def post_run():
     """
@@ -142,7 +147,7 @@ async def post_run():
     started_at = _now()
     
     # D'abord enregistrer le status de la tâche créée
-    _save_status({
+    d_status = _save_status({
         "run_id": run_id,
         "status": "running",
         "started_at": started_at,
@@ -158,13 +163,13 @@ async def post_run():
     # Supprimer la tâche une fois terminée
     task.add_done_callback(s_tasks.discard)
     
-    return {"run_id": run_id}
+    return d_status
 
 
-@app.get("/runs/{run_id}")
-async def get_run(run_id):
+@app.get("/run-status", status_code=200)
+async def get_run():
     """ Renvoie le json status.json"""
     d_status = _load_status()
-    if d_status is None or d_status.get("run_id") != run_id:
-        raise HTTPException(status_code=404, detail="run inconnu")
+    if d_status is None:
+        raise HTTPException(status_code=404, detail="Run status non diponible")
     return d_status          # {"run_id": ..., "status": "running" | "success" | "failed" | "interrupted" | "init"}

@@ -180,6 +180,44 @@ services:
       kafka-broker:
         condition: service_healthy
 
+  api-dbt:
+    build:
+      context: ./${SRVC_APIDBT}
+      dockerfile: ./Dockerfile
+      #pull_policy: build
+    image: ${PROJECT_NAME}-${SRVC_APIDBT}-image
+    container_name: ${PROJECT_NAME}-${SRVC_APIDBT}
+    restart: unless-stopped
+    environment:
+      #HOST_APIDBT_PORT: ${HOST_APIDBT_PORT}
+      CTNR_APIDBT_PORT: ${CTNR_APIDBT_PORT}
+      CLICKHOUSE_HOST: ${SRVC_DBTARGET}               # Nom libre - même nom que pour dbt-target
+      CLICKHOUSE_PORT: ${CTNR_DB_TARGET_PORT}         # Nom libre - même nom que pour dbt-target
+      CLICKHOUSE_USER: ${DB_TARGET_USER}              # même nom que pour dbt-targetNom imposé par Clickhouse
+      CLICKHOUSE_PASSWORD: ${DB_TARGET_PASSWORD}      # même nom que pour dbt-target
+      CLICKHOUSE_DB: ${DB_TARGET_NAME}
+      DBT_RUN_STATUS_FILE: ${DBT_RUN_STATUS_FILE}     # fichier status copié dans un volume
+      DBT_PROJECT_DIR: ${DBT_APP_PATH}/${DBT_OLAP_PROJECT}            # DBT_PROJECT_DIR : Nom spécifique à dbt
+      DBT_OLAP_PROJECT: ${DBT_OLAP_PROJECT}
+    volumes:
+      - ./${SRVC_APIDBT}/project/${DBT_OLAP_PROJECT}:${DBT_APP_PATH}/${DBT_OLAP_PROJECT}/          # project = nom du rep local choisi pour le dossier monté dans le conteneur pour copie des fichiers dans <DBT_DB_IN_WAREHOUSE> pour un setup équivalent à dbt init <DBT_PROJECT>
+      - ./${SRVC_APIDBT}/project/logs:${DBT_APP_PATH}/logs
+      - ./${SRVC_APIDBT}/src/:${DBT_APP_PATH}/src             # monter le rep src/ dans app/
+      - ${SRVC_APIDBT}-data:${DBT_APP_PATH}/run_status        # monter le rep de status.json/ dans un volume nommé pour la persistance
+    networks:
+      - stripe-dbt-network      # réseau spécifque pour contrôler qui peut interagir avec lui
+    healthcheck:
+      # healthcheck s'execute par curl dans le conteneur donc pas besoin d'exposer un port
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:${CTNR_APIDBT_PORT}/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      db-target:
+        condition: service_healthy
+
+
   api-gateway:
     build:
       context: .
@@ -193,6 +231,7 @@ services:
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}
       CTNR_APIGATEWAY_PORT: ${CTNR_APIGATEWAY_PORT}
       TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}                 # Topic for incoming transactions
+      URL_APIDBT: ${URL_APIDBT}
     networks:
       - stripe-network
       - stripe-dbt-network          # peut contrôler dbt sur les endpoints de son API
@@ -211,6 +250,8 @@ services:
         condition: service_healthy
       kafka-init-topics:
         condition: service_completed_successfully
+      api-dbt:
+        condition: service_healthy
 
   producer-tnx:
     build:
@@ -263,44 +304,6 @@ services:
         condition: service_healthy
       db-src:
         condition: service_healthy    # écriture dans db-src
-
-  api-dbt:
-    build:
-      context: ./${SRVC_APIDBT}
-      dockerfile: ./Dockerfile
-      #pull_policy: build
-    image: ${PROJECT_NAME}-${SRVC_APIDBT}-image
-    container_name: ${PROJECT_NAME}-${SRVC_APIDBT}
-    restart: unless-stopped
-    environment:
-      HOST_APIDBT_PORT: ${HOST_APIDBT_PORT}
-      CTNR_APIDBT_PORT: ${CTNR_APIDBT_PORT}
-      CLICKHOUSE_HOST: ${SRVC_DBTARGET}               # Nom libre - même nom que pour dbt-target
-      CLICKHOUSE_PORT: ${CTNR_DB_TARGET_PORT}         # Nom libre - même nom que pour dbt-target
-      CLICKHOUSE_USER: ${DB_TARGET_USER}              # même nom que pour dbt-targetNom imposé par Clickhouse
-      CLICKHOUSE_PASSWORD: ${DB_TARGET_PASSWORD}      # même nom que pour dbt-target
-      CLICKHOUSE_DB: ${DB_TARGET_NAME}
-      DBT_RUN_STATUS_FILE: ${DBT_RUN_STATUS_FILE}     # fichier status copié dans un volume
-      DBT_PROJECT_DIR: ${DBT_APP_PATH}/${DBT_OLAP_PROJECT}            # DBT_PROJECT_DIR : Nom spécifique à dbt
-      DBT_OLAP_PROJECT: ${DBT_OLAP_PROJECT}
-    volumes:
-      - ./${SRVC_APIDBT}/project/${DBT_OLAP_PROJECT}:${DBT_APP_PATH}/${DBT_OLAP_PROJECT}/          # project = nom du rep local choisi pour le dossier monté dans le conteneur pour copie des fichiers dans <DBT_DB_IN_WAREHOUSE> pour un setup équivalent à dbt init <DBT_PROJECT>
-      - ./${SRVC_APIDBT}/project/logs:${DBT_APP_PATH}/logs
-      - ./${SRVC_APIDBT}/src/:${DBT_APP_PATH}/src             # monter le rep src/ dans app/
-      - ${SRVC_APIDBT}-data:${DBT_APP_PATH}/run_status        # monter le rep de status.json/ dans un volume nommé pour la persistance
-    networks:
-      - stripe-dbt-network      # réseau spécifque pour contrôler qui peut interagir avec lui
-    healthcheck:
-      # healthcheck s'execute par curl dans le conteneur donc pas besoin d'exposer un port
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:${CTNR_APIDBT_PORT}/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 30s
-    depends_on:
-      db-target:
-        condition: service_healthy
-
 
 volumes:
   db-src-data:              # Volume nommé - effacé avec docker compose down -v
