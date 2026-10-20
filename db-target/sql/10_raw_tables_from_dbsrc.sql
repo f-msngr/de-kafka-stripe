@@ -64,9 +64,10 @@ CREATE TABLE IF NOT EXISTS analysts (
 ) ENGINE = ReplacingMergeTree(__source_lsn) ORDER BY analyst_id;
 
 CREATE TABLE IF NOT EXISTS rejects (
-  reject_id Int64, customer_id Int64, first_name String, last_name String, dob Date32,
-  merchant_id Int64, merchant String, transdate_transtime String, cc_num String,
+  reject_id Int64, trans_num String, customer_id Int64, first_name String, last_name String, dob Date32,
+  merchant_id Int64, merchant String, activity_id Int32, transdate_transtime String, cc_num String,
   ip_geoloc Nullable(String), device_type Nullable(String),
-  amount_presentation String, currency_id_presentation String,
+  amount_presentation String, currency_id_presentation String, amt String,
+  merch_lat String, merch_long String,
   fraud_score String, model_version String, __source_lsn UInt64
 ) ENGINE = ReplacingMergeTree(__source_lsn) ORDER BY reject_id;

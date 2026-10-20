@@ -82,10 +82,6 @@ Table payments.activities {
 Table payments.merchants {
   merchant_id bigint [pk, increment]
   merchant    varchar(80) [not null, unique]
-
-  indexes {
-    activity_id [name: 'ix_merch_activity']
-  }
 }
 
 Table payments.currencies {
@@ -102,7 +98,7 @@ Table payments.analysts {
 
 Table payments.transactions {
   transaction_id           bigint        [pk, increment]
-  trans_num                varchar(32)   [unique]
+  trans_num                varchar(32)   [unique, not null]
   transdate_transtime      timestamptz   [not null]
 
   // buy
@@ -181,6 +177,7 @@ Ref: payments.transactions.currency_id_received     > payments.currencies.curren
 
 Table frauds.rejects {
   reject_id                bigint        [pk, increment]
+  trans_num                varchar(32)   [unique, not null]
 
   // client et marchand : identifiants ET valeurs (l'identifiant peut ne désigner aucune ligne de payments après un rollback)
   customer_id              bigint        [not null]
@@ -189,6 +186,7 @@ Table frauds.rejects {
   dob                      date          [not null]
   merchant_id              bigint        [not null]
   merchant                 varchar(80)   [not null]
+  activity_id              int           [not null]
 
   transdate_transtime      timestamptz   [not null]
   cc_num                   varchar(20)   [not null]
@@ -196,6 +194,9 @@ Table frauds.rejects {
   device_type              varchar(20)
   amount_presentation      numeric(20,4) [not null]
   currency_id_presentation char(3)       [not null]
+  amt                      numeric(20,4) [not null]
+  merch_lat                numeric(9,6)  [not null]
+  merch_long               numeric(9,6)  [not null]
   fraud_score              numeric(6,4)  [not null]
   model_version            varchar(40)   [not null]
 
