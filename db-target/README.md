@@ -13,7 +13,7 @@
   `clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD"`
 
 - Afficher les tables system (depuis le client)
-  `SELECT database, name FROM system.names;`
+  `SELECT database, name FROM system.tables;`
 
 - Afficher la config spécifique
   `SELECT name, value FROM system.server_settings WHERE name = 'PARAMETRE_SERVEUR'`
@@ -21,6 +21,12 @@
 - Visualiser le schéma de création d'une table dans Clickouse (depuis le client)
   `DESCRIBE TABLE transactions;`
   `SHOW CREATE TABLE transactions;`
+
+- Visualiser une View/Table créée par dbt run <UN_DES_MODELES_DANS_REP_MODELS>
+  tables ou views visibles à côté des tables brutes
+  `USE stripe;` `SHOW TABLES;`
+  `SELECT name FROM system.tables WHERE database = 'stripe' AND engine = 'View';`
+
 
 # Structure des fichiers de conf (non montés dans docker-compose)
 

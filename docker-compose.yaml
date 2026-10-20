@@ -190,6 +190,7 @@ services:
     restart: unless-stopped
     environment:
       #HOST_APIDBT_PORT: ${HOST_APIDBT_PORT}
+      DBT_SEND_ANONYMOUS_USAGE_STATS: false           # Pas d'envoi de stats d'usage anonyme à snowplow
       CTNR_APIDBT_PORT: ${CTNR_APIDBT_PORT}
       CLICKHOUSE_HOST: ${SRVC_DBTARGET}               # Nom libre - même nom que pour dbt-target
       CLICKHOUSE_PORT: ${CTNR_DB_TARGET_PORT}         # Nom libre - même nom que pour dbt-target
