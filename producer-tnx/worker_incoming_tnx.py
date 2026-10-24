@@ -14,6 +14,8 @@ MAX_CONCURRENCY = 20              # requêtes simultanées maximum
 MAX_RETRIES = 3                   # essais par transaction
 BATCH_WAIT = 2                    # secondes entre deux lots
 POLL_WAIT = 1                     # secondes entre deux lectures de l'état pendant un halt
+MAX_STREAM_RETRIES = 5            # reconnexions de suite autorisées sans lire une seule ligne
+STREAM_RETRY_WAIT = 2             # secondes avant de se reconnecter
 l_COL_DROP = ["column00", "unix_time"]        # colonnes retirées de chaque transaction
 COL_MERCHANT = "merchant"         # colonne du nom du marchand : à comparer à l'en-tête de feed.csv
 FRAUD_PREFIX = "fraud_"
@@ -74,28 +76,58 @@ async def wait_until_start():
 import csv
 import httpx
 
+STREAM_ERRORS = (httpx.ReadError, httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectError)
+
+async def stream_lines(client: httpx.AsyncClient):
+    """Renvoie les lignes de URL_FEED une par une. Si S3 coupe la connexion, se reconnecte et reprend là où on s'était arrêté."""
+    offset = 0      # nombre d'octets des lignes complètes déjà renvoyées
+    failures = 0    # coupures de suite sans progrès
+    while True:
+        headers = {"Range": f"bytes={offset}-"} if offset else {}   # reprise à l'octet offset
+        try:
+            async with client.stream("GET", URL_FEED, headers=headers) as resp:
+                resp.raise_for_status()
+                if offset and resp.status_code != 206:             # 206 = "contenu partiel", la reprise a marché
+                    raise RuntimeError(f"reprise à l'octet {offset} refusée (HTTP {resp.status_code})")
+                buffer = b""                                        # morceau de ligne pas encore terminé
+                async for chunk in resp.aiter_bytes():
+                    buffer += chunk
+                    while (pos := buffer.find(b"\n")) != -1:
+                        raw, buffer = buffer[:pos], buffer[pos + 1:]
+                        offset += pos + 1                           # +1 = le "\n"
+                        failures = 0
+                        yield raw.decode("utf-8").rstrip("\r")
+                if buffer.strip():                                  # dernière ligne sans "\n" final
+                    offset += len(buffer)
+                    yield buffer.decode("utf-8").rstrip("\r")
+                return                                              # fichier lu en entier
+        except STREAM_ERRORS as e:
+            failures += 1
+            if failures > MAX_STREAM_RETRIES:
+                raise
+            logger.warning(f"⚠️ flux coupé ({type(e).__name__}) : reprise à l'octet {offset} (essai {failures})")
+            await asyncio.sleep(STREAM_RETRY_WAIT)
+
 async def read_batches(client: httpx.AsyncClient):
     """Lit feed.csv en flux et renvoie des lots (dicts). Avant chaque lot : attend 'start', relit batch_size."""
     header = None
     batch = []
     size = None
-    async with client.stream("GET", URL_FEED) as resp:
-        resp.raise_for_status()
-        async for line in resp.aiter_lines():
-            if not line:
-                continue
-            values = next(csv.reader([line]))   # une ligne = une transaction (pas de retour à la ligne dans un champ)
-            if header is None:
-                header = values
-                continue
-            if size is None:                    # début d'un nouveau lot
-                await wait_until_start()
-                size = load_settings()["batch_size"]
-            batch.append(dict(zip(header, values)))
-            if len(batch) >= size:
-                yield batch
-                batch = []
-                size = None
+    async for line in stream_lines(client):
+        if not line:
+            continue
+        values = next(csv.reader([line]))   # une ligne = une transaction (pas de retour à la ligne dans un champ)
+        if header is None:
+            header = values
+            continue
+        if size is None:                    # début d'un nouveau lot
+            await wait_until_start()
+            size = load_settings()["batch_size"]
+        batch.append(dict(zip(header, values)))
+        if len(batch) >= size:
+            yield batch
+            batch = []
+            size = None
     if batch:
         yield batch
 
