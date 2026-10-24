@@ -19,6 +19,7 @@ DB_SRC_SCHEMA_2 = os.environ["DB_SRC_SCHEMA_2"]   # schéma du journal des rejet
 
 FRAUD_PREFIX = "fraud_"           # même valeur que dans producer-tnx/worker_incoming_tnx.py
 FRAUD_THRESHOLD = float(os.environ["FRAUD_THRESHOLD"])             # fraud_score >= seuil : écriture dans frauds.rejects
+CLEARED_PENDING_BOUNDARY = float(os.environ["CLEARED_PENDING_BOUNDARY"])        # limite entre le seuil de certitude/litige pour la prédiction
 MODEL_VERSION = "mock-v0"         # à remplacer par la version du vrai modèle
 CURRENCY = "USD"                  # le feed n'a qu'un montant : devise de présentation = devise reçue (doit exister dans payments.currencies)
 CURRENCY_RATE = 1
@@ -163,8 +164,8 @@ def write_tnx(conn: psycopg.Connection, p: dict) -> str:
                         ))
             return "reject" if cur.rowcount == 1 else "duplicate"
         
-        # Sinon si fraud_score >= seuil - 0.10
-        if payload["fraud_score"] >= (FRAUD_THRESHOLD - 0.10):
+        # Sinon si fraud_score >= seuil - CLEARED_PENDING_BOUNDARY
+        if payload["fraud_score"] >= (FRAUD_THRESHOLD - CLEARED_PENDING_BOUNDARY):
             payload["review_status"] = 'pending'
         else:
             payload["review_status"] = 'cleared'
