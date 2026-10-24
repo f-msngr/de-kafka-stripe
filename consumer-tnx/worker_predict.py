@@ -62,12 +62,48 @@ SQL_ACTIVITY = q("""INSERT INTO {s1}.activities (category) VALUES (%s)
 ON CONFLICT (category) DO UPDATE SET category = EXCLUDED.category RETURNING activity_id""")
 SQL_MERCHANT = q("""INSERT INTO {s1}.merchants (merchant) VALUES (%s)
 ON CONFLICT (merchant) DO UPDATE SET merchant = EXCLUDED.merchant RETURNING merchant_id""")
-SQL_TRANSACTION = q("""INSERT INTO {s1}.transactions
-(trans_num, transdate_transtime, cc_num, amount_presentation, amt, currency_rate,
- currency_id_presentation, currency_id_received, fraud_score, model_version, status, review_status, is_fraud,
- merch_lat, merch_long, customer_id, merchant_id, activity_id)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'successful', 'cleared', false, %s, %s, %s, %s, %s)
-ON CONFLICT (trans_num) DO NOTHING""")
+SQL_TRANSACTION = q(
+    "INSERT INTO {s1}.transactions ("
+    "trans_num, "                   # 1  <- p["trans_num"]
+    "transdate_transtime, "         # 2  <- p["trans_date_trans_time"]
+    "cc_num, "                      # 3  <- p["cc_num"]
+    "amount_presentation, "         # 4  <- amt
+    "amt, "                         # 5  <- amt
+    "currency_rate, "               # 6  <- CURRENCY_RATE
+    "currency_id_presentation, "    # 7  <- CURRENCY
+    "currency_id_received, "        # 8  <- CURRENCY
+    "fraud_score, "                 # 9  <- p["fraud_score"]
+    "model_version, "               # 10 <- MODEL_VERSION
+    "status, "                      # 11 valeur fixe 'successful'
+    "review_status, "               # 12 valeur fixe 'cleared'
+    "is_fraud, "                    # 13 valeur fixe false
+    "merch_lat, "                   # 14 <- p["merch_lat"]
+    "merch_long, "                  # 15 <- p["merch_long"]
+    "customer_id, "                 # 16 <- customer_id
+    "merchant_id, "                 # 17 <- merchant_id
+    "activity_id"                   # 18 <- activity_id
+    ") VALUES ("
+    "%s, "                          # 1  trans_num
+    "%s, "                          # 2  transdate_transtime
+    "%s, "                          # 3  cc_num
+    "%s, "                          # 4  amount_presentation
+    "%s, "                          # 5  amt
+    "%s, "                          # 6  currency_rate
+    "%s, "                          # 7  currency_id_presentation
+    "%s, "                          # 8  currency_id_received
+    "%s, "                          # 9  fraud_score
+    "%s, "                          # 10 model_version
+    "'successful', "                # 11 status
+    #"'cleared', "                   # 12 review_status
+    "%s, "                          # 12 review_status
+    "false, "                       # 13 is_fraud
+    "%s, "                          # 14 merch_lat
+    "%s, "                          # 15 merch_long
+    "%s, "                          # 16 customer_id
+    "%s, "                          # 17 merchant_id
+    "%s"                            # 18 activity_id
+    ") ON CONFLICT (trans_num) DO NOTHING"   # rowcount = 0 si trans_num existe déjà -> 'duplicate'
+)
 SQL_REJECT = q("""INSERT INTO {s2}.rejects
 (trans_num, customer_id, first_name, last_name, dob, merchant_id, merchant, activity_id,
  transdate_transtime, cc_num, amount_presentation, currency_id_presentation, amt,
@@ -91,7 +127,7 @@ def one(cur, sql: str, params: tuple):
     return cur.fetchone()[0]
 
 def write_tnx(conn: psycopg.Connection, p: dict) -> str:
-    """Résout les dépendances puis écrit la transaction ou le rejet, dans une seule transaction SQL.
+    """Résoud les dépendances puis écrit la transaction ou le rejet, dans une seule transaction SQL.
     Renvoie 'transaction', 'reject' ou 'duplicate'."""
     with conn.transaction(), conn.cursor() as cur:    # BEGIN ... COMMIT, ROLLBACK si exception
         state_id = one(cur, SQL_STATE, (p["state"],))
@@ -101,16 +137,56 @@ def write_tnx(conn: psycopg.Connection, p: dict) -> str:
         customer_id = one(cur, SQL_CUSTOMER, (p["first"], p["last"], p["gender"], p["dob"], job_id, address_id))
         activity_id = one(cur, SQL_ACTIVITY, (p["category"],))
         merchant_id = one(cur, SQL_MERCHANT, (p["merchant"],))
+        
         amt = round(p["amt"], 4)
+        
+        # Si fraud_score >= seuil alors transaction rejetée
         if p["fraud_score"] >= FRAUD_THRESHOLD:       # jamais dans payments.transactions (ADR_001-003)
-            cur.execute(SQL_REJECT, (p["trans_num"], customer_id, p["first"], p["last"], p["dob"],
-                                     merchant_id, p["merchant"], activity_id,
-                                     p["trans_date_trans_time"], p["cc_num"], amt, CURRENCY, amt,
-                                     p["merch_lat"], p["merch_long"], p["fraud_score"], MODEL_VERSION))
+            cur.execute(SQL_REJECT, 
+                        (p["trans_num"],
+                        customer_id,
+                        p["first"],
+                        p["last"],
+                        p["dob"],
+                        merchant_id,
+                        p["merchant"],
+                        activity_id,
+                        p["trans_date_trans_time"],
+                        p["cc_num"],
+                        amt,
+                        CURRENCY,
+                        amt,
+                        p["merch_lat"],
+                        p["merch_long"],
+                        p["fraud_score"],
+                        MODEL_VERSION
+                        ))
             return "reject" if cur.rowcount == 1 else "duplicate"
-        cur.execute(SQL_TRANSACTION, (p["trans_num"], p["trans_date_trans_time"], p["cc_num"], amt, amt,
-                                      CURRENCY_RATE, CURRENCY, CURRENCY, p["fraud_score"], MODEL_VERSION,
-                                      p["merch_lat"], p["merch_long"], customer_id, merchant_id, activity_id))
+        
+        # Sinon si fraud_score >= seuil - 0.10
+        if payload["fraud_score"] >= (FRAUD_THRESHOLD - 0.10):
+            payload["review_status"] = 'pending'
+        else:
+            payload["review_status"] = 'cleared'
+        
+        cur.execute(SQL_TRANSACTION,
+                    (p["trans_num"],
+                    p["trans_date_trans_time"],
+                    p["cc_num"],
+                    amt,
+                    amt,
+                    CURRENCY_RATE,
+                    CURRENCY,
+                    CURRENCY,
+                    p["fraud_score"],
+                    MODEL_VERSION,
+                    p["review_status"],
+                    p["merch_lat"],
+                    p["merch_long"],
+                    customer_id,
+                    merchant_id,
+                    activity_id
+                    ))
         return "transaction" if cur.rowcount == 1 else "duplicate"
 
 
@@ -151,6 +227,7 @@ for elt in consumer:
     # Reconstruction du json à partir de l'elt du topic
     try:
         is_synth = tnx["merchant"].startswith(FRAUD_PREFIX)                 # étiquette de transport, jamais écrite en base
+        
         payload = {
             "uuid": tnx["uuid"],
             "trans_date_trans_time": tnx["trans_date_trans_time"],
@@ -173,7 +250,7 @@ for elt in consumer:
             "trans_num": tnx["trans_num"],
             "merch_lat": float(tnx["merch_lat"]),
             "merch_long": float(tnx["merch_long"]),
-            "fraud_score": 0.0,
+            "fraud_score": 0.0,                                             # devra contenir le score prédit cf. PREDICT 
         }
     except (KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"❌ Message invalide, ignoré : {e!r}")
@@ -185,9 +262,17 @@ for elt in consumer:
     # =========================================
     # Infère le score par appel au modèle en prod avec les traitements nécessaires
     # Pour l'instant : score 1 si le marchand portait l'étiquette de fraude synthétique
+    import random
+    
     if is_synth:
         payload["fraud_score"] = 1.0
-    
+    else:
+        # Simule une prediction avec score
+        SCORE_MIN = 0.70                  # borne basse du score simulé
+        SCORE_MAX = 0.90                  # borne haute du score simulé
+        FRAUD_SCORE = round(random.uniform(SCORE_MIN, SCORE_MAX), 3)
+        payload["fraud_score"] = FRAUD_SCORE
+
     # =========================================
     # PROCESS TNX /W INSERT IN ADEQUATE SCHEMA
     # =========================================
