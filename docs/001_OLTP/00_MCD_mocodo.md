@@ -10,9 +10,9 @@ BUY, 0N CUSTOMERS, 11 TRANSACTIONS: cc_num, ip_geoloc, device_type
 ANALYSTS: analyst_id, role
 SETTLE, 0N CITIES, 11 ADDRESSES
 
-REJECTS: reject_id, first_name, last_name, dob, merchant, transdate_transtime, cc_num, ip_geoloc, device_type, amount_presentation, currency_id_presentation, fraud_score, model_version
+REJECTS: reject_id, first_name, last_name, dob, merchant_id, merchant, activity_id, transdate_transtime, cc_num, ip_geoloc, device_type, amount_presentation, currency_id_presentation, amt, merch_lat, merch_long, fraud_score, model_version
 PRESENT, 0N CURRENCIES, 11 TRANSACTIONS
-TRANSACTIONS: transactions_id, trans_num, transdate_transtime, status, amount_presentation, amt, fraud_score, model_version, review_status, refunded_at
+TRANSACTIONS: transactions_id, trans_num, transdate_transtime, amount_presentation, amt, fraud_score, model_version, status, review_status, refunded_at
 REVIEW, 01 TRANSACTIONS, 0N ANALYSTS: is_fraud, verdict_at
 CITIES: city_id, city, zip, city_pop
 

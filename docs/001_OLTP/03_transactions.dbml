@@ -181,7 +181,7 @@ Table frauds.rejects {
 
   // client et marchand : identifiants ET valeurs (l'identifiant peut ne désigner aucune ligne de payments après un rollback)
   customer_id              bigint        [not null]
-  first_name               varchar(40)   [not null]
+  first_name               varchar(40)   [not null] 
   last_name                varchar(80)   [not null]
   dob                      date          [not null]
   merchant_id              bigint        [not null]

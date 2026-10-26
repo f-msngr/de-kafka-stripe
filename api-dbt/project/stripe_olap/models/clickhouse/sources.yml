@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: stripe
+    tables:
+      - name: states
+      - name: cities
+      - name: addresses
+      - name: jobs
+      - name: customers
+      - name: merchants
+      - name: activities
+      - name: analysts
+      - name: currencies
+      - name: transactions
+      - name: rejects
