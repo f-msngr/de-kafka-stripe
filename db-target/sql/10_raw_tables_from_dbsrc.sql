@@ -44,14 +44,14 @@ CREATE TABLE IF NOT EXISTS merchants (
 ) ENGINE = ReplacingMergeTree(__source_lsn) ORDER BY merchant_id;
 
 CREATE TABLE IF NOT EXISTS transactions (
-  transaction_id Int64, trans_num Nullable(String), transdate_transtime String,
+  transaction_id Int64, trans_num String, transdate_transtime String,
   cc_num String, ip_geoloc Nullable(String), device_type Nullable(String),
   amount_presentation String, amt String, currency_rate String,
   currency_id_presentation String, currency_id_received String,
   fraud_score Nullable(String), model_version Nullable(String),
   status String, review_status String, refunded_at Nullable(String),
   analyst_id Nullable(Int32), is_fraud Nullable(Bool), verdict_at Nullable(String),
-  merch_lat String, merch_long Nullable(String),
+  merch_lat String, merch_long String,
   customer_id Int64, merchant_id Int64, activity_id Int32, __source_lsn UInt64
 ) ENGINE = ReplacingMergeTree(__source_lsn) ORDER BY transaction_id;
 
