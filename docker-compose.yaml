@@ -233,6 +233,12 @@ services:
       CTNR_APIGATEWAY_PORT: ${CTNR_APIGATEWAY_PORT}
       TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}                 # Topic for incoming transactions
       URL_APIDBT: ${URL_APIDBT}
+      # Connexion à Clickhouse
+      CLICKHOUSE_HOST: ${SRVC_DBTARGET}               # Nom libre - même nom que pour dbt-target
+      CLICKHOUSE_PORT: ${CTNR_DB_TARGET_PORT}         # Nom libre - même nom que pour dbt-target
+      CLICKHOUSE_USER: ${DB_TARGET_USER}              # même nom que pour dbt-targetNom imposé par Clickhouse
+      CLICKHOUSE_PASSWORD: ${DB_TARGET_PASSWORD}      # même nom que pour dbt-target
+      CLICKHOUSE_DB: ${DB_TARGET_NAME}
     networks:
       - stripe-network
       - stripe-dbt-network          # peut contrôler dbt sur les endpoints de son API
@@ -247,12 +253,15 @@ services:
       retries: 10
       start_period: 30s
     depends_on:
+      db-target:                          # api-gateway créée une connexion à clickhouse au démarrage
+        condition: service_healthy
       kafka-broker:
         condition: service_healthy
       kafka-init-topics:
         condition: service_completed_successfully
       api-dbt:
         condition: service_healthy
+      
 
   producer-tnx:
     build:

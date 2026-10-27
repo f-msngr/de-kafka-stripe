@@ -12,3 +12,6 @@ httpx
 
 # Kafka
 kafka-python-ng
+
+# Clickhouse
+clickhouse-connect[async]

@@ -32,6 +32,7 @@ BOOTSTRAP_SERVERS = os.environ["BOOTSTRAP_SERVERS"]
 from contextlib import asynccontextmanager
 from kafka import KafkaProducer
 import json
+import clickhouse_connect
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,9 +44,22 @@ async def lifespan(app: FastAPI):
         retry_backoff_ms=500,
         # paramètre enable_idempotence est configuré sur True par défaut.
     )
-    yield
-    # Arrêt : envoie les messages restants puis ferme
-    app.state.producer.close()
+    try:       # si la connexion clickhouse plante, alors il faut libérer la ressource : le Producer étant créé, il faut le fermer -> finally producer.close
+        app.state.clickhouse = await clickhouse_connect.get_async_client(
+            autogenerate_session_id=False,  # évite l'erreur « session verrouillée » si deux requêtes arrivent en même temps
+            host=os.environ["CLICKHOUSE_HOST"],
+            port=int(os.environ["CLICKHOUSE_PORT"]),
+            username=os.environ["CLICKHOUSE_USER"],
+            password=os.environ["CLICKHOUSE_PASSWORD"],
+            database=os.environ["CLICKHOUSE_DB"],
+        )
+        try:   # si l'API plante, alors il faut libérer la ressource : fermer la connexion à Clickhouse -> finally clickhouse.close
+            yield
+        finally:
+            app.state.clickhouse.close()
+    finally:
+        # Arrêt : envoie les messages restants puis ferme
+        app.state.producer.close()
 
 
 # ================================================
@@ -86,3 +100,11 @@ app.include_router(ingest_router)
 # Include router
 from .route_dbt import dbt_router
 app.include_router(dbt_router)
+
+
+# ================================================
+# ML
+# ================================================
+# Include router
+from .route_ml import ml_router
+app.include_router(ml_router)
