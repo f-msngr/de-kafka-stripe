@@ -131,7 +131,7 @@ async def _launch_task(run_id: str, started_at: str) -> None:
             })
 
 # ================================================
-# ENDPOINTS : /run, /runs/{id}
+# ENDPOINTS : /run, /run-status
 # ================================================
 @app.post("/run", status_code=202)
 async def post_run():

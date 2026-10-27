@@ -99,7 +99,7 @@ app.include_router(ingest_router)
 # ================================================
 # Include router
 from .route_dbt import dbt_router
-app.include_router(dbt_router)
+app.include_router(dbt_router, prefix="/dbt")
 
 
 # ================================================
@@ -107,4 +107,4 @@ app.include_router(dbt_router)
 # ================================================
 # Include router
 from .route_ml import ml_router
-app.include_router(ml_router)
+app.include_router(ml_router, prefix="/ml")

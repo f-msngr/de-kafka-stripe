@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS merchants (
   merchant_id Int64, merchant String, __source_lsn UInt64
 ) ENGINE = ReplacingMergeTree(__source_lsn) ORDER BY merchant_id;
 
+-- Les dates (timestamptz) et décimaux (numeric) restent en String : types de transport de Debezium (decimal.handling.mode=string). Les types logiques sont posés dans les modèles dbt stg_*.
 CREATE TABLE IF NOT EXISTS transactions (
   transaction_id Int64, trans_num String, transdate_transtime String,
   cc_num String, ip_geoloc Nullable(String), device_type Nullable(String),

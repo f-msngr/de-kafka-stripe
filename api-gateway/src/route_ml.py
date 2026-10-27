@@ -27,7 +27,6 @@ ml_router = APIRouter()
 # ML entry point
 # ===============================
 from fastapi import HTTPException, Request, Response
-import clickhouse_connect
 
 d_VIEWS = {"train": "view_train"}  # nom réel des vues dbt autorisées à l'appel
 
@@ -38,7 +37,7 @@ def _get_clickhouse_client(request: Request):
 
 
 @ml_router.get(
-    "/ml/views/{view}",
+    "/views/{view}",
     response_class=Response,
     responses={200: {"content": {"application/vnd.apache.parquet": {}}, "description": "Fichier Parquet"}},
     include_in_schema=False)

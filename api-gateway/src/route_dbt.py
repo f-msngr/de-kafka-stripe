@@ -23,7 +23,7 @@ async def get_status():
         raise HTTPException(status_code=502, detail=f"api-dbt injoignable ou en erreur : {error_apidbt}")
     return status.json()
 
-@dbt_router.post("/dbt-run", include_in_schema=True)
+@dbt_router.post("/run", include_in_schema=True)
 async def post_dbt_run():
     """
     Calls api-dbt/run and return the status.json from it
