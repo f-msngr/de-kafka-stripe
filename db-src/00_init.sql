@@ -107,6 +107,7 @@ CREATE TABLE "payments"."transactions" (
   CONSTRAINT "ck_tx_init" CHECK (review_status <> 'init' OR (coalesce(analyst_id, -1) = 0 AND is_fraud IS NOT NULL AND verdict_at IS NOT NULL)),
   CONSTRAINT "ck_tx_reviewed_needs_analyst" CHECK (review_status <> 'reviewed' OR analyst_id IS NOT NULL),
   CONSTRAINT "ck_tx_scored_unless_init" CHECK (review_status = 'init' OR (fraud_score IS NOT NULL AND model_version IS NOT NULL)),
+  CONSTRAINT "ck_tx_reviewed_needs_verdict" CHECK (review_status <> 'reviewed' OR verdict_at IS NOT NULL),
   CONSTRAINT "ck_tx_refund_status" CHECK (refunded_at IS NULL OR status IN ('refunded', 'reversed'))
 );
 

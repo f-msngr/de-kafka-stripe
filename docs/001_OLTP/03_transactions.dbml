@@ -156,6 +156,7 @@ Table payments.transactions {
     `review_status <> 'init' OR (coalesce(analyst_id, -1) = 0 AND is_fraud IS NOT NULL AND verdict_at IS NOT NULL)` [name: 'ck_tx_init']
     `review_status <> 'reviewed' OR analyst_id IS NOT NULL` [name: 'ck_tx_reviewed_needs_analyst']
     `review_status = 'init' OR (fraud_score IS NOT NULL AND model_version IS NOT NULL)` [name: 'ck_tx_scored_unless_init']
+    `review_status <> 'reviewed' OR verdict_at IS NOT NULL` [name: 'ck_tx_reviewed_needs_verdict']
     `refunded_at IS NULL OR status IN ('refunded', 'reversed')` [name: 'ck_tx_refund_status']
   }
 }

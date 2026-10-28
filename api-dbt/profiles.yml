@@ -1,4 +1,4 @@
-stripe_olap:      # profile defined in dbt_project.yml to be used by dbt for the project
+stripe_clickhouse:      # profile defined in dbt_project.yml to be used by dbt for the project
   target: dev
   outputs:
     dev:

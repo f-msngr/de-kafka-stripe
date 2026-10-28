@@ -200,6 +200,9 @@ services:
       DBT_RUN_STATUS_FILE: ${DBT_RUN_STATUS_FILE}     # fichier status copié dans un volume
       DBT_PROJECT_DIR: ${DBT_APP_PATH}/${DBT_OLAP_PROJECT}            # DBT_PROJECT_DIR : Nom spécifique à dbt
       DBT_OLAP_PROJECT: ${DBT_OLAP_PROJECT}
+      # Seuils pour les transactions
+      FRAUD_THRESHOLD: ${FRAUD_THRESHOLD}                     # Seuil de rejet d'une transaction inline
+      CLEARED_PENDING_BOUNDARY: ${CLEARED_PENDING_BOUNDARY}   # Seuil de litige pour une transaction valide
     volumes:
       - ./${SRVC_APIDBT}/project/${DBT_OLAP_PROJECT}:${DBT_APP_PATH}/${DBT_OLAP_PROJECT}/          # project = nom du rep local choisi pour le dossier monté dans le conteneur pour copie des fichiers dans <DBT_DB_IN_WAREHOUSE> pour un setup équivalent à dbt init <DBT_PROJECT>
       - ./${SRVC_APIDBT}/project/logs:${DBT_APP_PATH}/logs
@@ -296,8 +299,8 @@ services:
       BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS}             # Le consumer a besoin d"accéder au topic kafka directement
       TOPIC_INCOMING_TNX: ${TOPIC_INCOMING_TNX}
       GROUP_ID: ${GROUP_ID_CONSUMERTNX}
-      FRAUD_THRESHOLD: ${FRAUD_THRESHOLD}
-      CLEARED_PENDING_BOUNDARY: ${CLEARED_PENDING_BOUNDARY}
+      FRAUD_THRESHOLD: ${FRAUD_THRESHOLD}                     # Seuil de rejet d'une transaction inline
+      CLEARED_PENDING_BOUNDARY: ${CLEARED_PENDING_BOUNDARY}   # Seuil de litige pour une transaction valide
       # Connexion à db-src
       DB_SRC_HOST: ${SRVC_DBSRC}
       DB_SRC_PORT: ${CTNR_DB_SRC_PORT}
