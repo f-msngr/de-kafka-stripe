@@ -242,6 +242,8 @@ services:
       CLICKHOUSE_USER: ${DB_TARGET_USER}              # même nom que pour dbt-targetNom imposé par Clickhouse
       CLICKHOUSE_PASSWORD: ${DB_TARGET_PASSWORD}      # même nom que pour dbt-target
       CLICKHOUSE_DB: ${DB_TARGET_NAME}
+      # Répertoires + DB des marts construits par DBT
+      DBT_MARTS: ${DBT_MARTS}
     networks:
       - stripe-network
       - stripe-dbt-network          # peut contrôler dbt sur les endpoints de son API

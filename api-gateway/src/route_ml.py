@@ -20,21 +20,16 @@ ml_router = APIRouter()
 # ===============================
 # ENV
 # ===============================
-
+DBT_MARTS = os.environ["DBT_MARTS"]
 
 
 # ===============================
-# ML entry point
+# ML endpoints
 # ===============================
 from fastapi import HTTPException, Request, Response
+from .libs import get_clickhouse_client
 
 d_VIEWS = {"train": "view_train"}  # nom réel des vues dbt autorisées à l'appel
-
-
-def _get_clickhouse_client(request: Request):
-    """ Retourne le client ClickHouse stocké dans app.state.clickhouse. """
-    return request.app.state.clickhouse
-
 
 @ml_router.get(
     "/views/{view}",
@@ -42,14 +37,20 @@ def _get_clickhouse_client(request: Request):
     responses={200: {"content": {"application/vnd.apache.parquet": {}}, "description": "Fichier Parquet"}},
     include_in_schema=False)
 async def get_view(view: str, request: Request):
-    
+    """Renvoie en Parquet le contenu d'une vue dbt autorisée.
+
+    - `view` : clé de la vue dans `d_VIEWS` (liste blanche), sinon 404.
+    - Le client ClickHouse est celui créé au démarrage (lifespan) et stocké
+      dans `app.state`; il est récupéré via `request`.
+    - Exécute `SELECT * FROM <vue>` ; ClickHouse produit le Parquet, renvoyé tel quel.
+    """
     if view not in d_VIEWS:
         raise HTTPException(status_code=404, detail="Vue inconnue")
     
-    client = _get_clickhouse_client(request)
+    client = get_clickhouse_client(request)
     
     data = await client.raw_query(
-        f"SELECT * FROM {d_VIEWS[view]}",
+        f"SELECT * FROM {DBT_MARTS}.{d_VIEWS[view]}",
         fmt="Parquet",   # produit par Clickhouse
         #settings={"output_format_parquet_string_as_string": 1},  # texte écrit comme texte, et non comme binaire
         )

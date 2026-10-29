@@ -33,6 +33,9 @@ pip_freeze.txt
 .db-target
 .db-target-data
 
+# Logs
+logs
+
 # Local scripts
 monitor-*
 ROADMAP.md

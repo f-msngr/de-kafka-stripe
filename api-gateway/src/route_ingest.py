@@ -38,7 +38,7 @@ ingest_router = APIRouter()
 TOPIC_INCOMING_TNX = os.environ["TOPIC_INCOMING_TNX"]
 
 # ===============================
-# Ingest entry point
+# Ingest endpoints
 # ===============================
 @ingest_router.post("/ingest", status_code=202)
 async def ep_ingest(raw: dict, request: Request):
