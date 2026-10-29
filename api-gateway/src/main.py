@@ -108,3 +108,11 @@ app.include_router(dbt_router, prefix="/dbt")
 # Include router
 from .route_ml import ml_router
 app.include_router(ml_router, prefix="/ml")
+
+
+# ================================================
+# Analytics
+# ================================================
+# Include router
+from .route_analytics import analytics_router
+app.include_router(analytics_router, prefix="/analytics")
