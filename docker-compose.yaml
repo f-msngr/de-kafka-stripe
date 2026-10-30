@@ -321,6 +321,34 @@ services:
       db-src:
         condition: service_healthy    # écriture dans db-src
 
+  dashboard:
+    build:
+      context: ./${SRVC_DASHBOARD}
+      dockerfile:  ./Dockerfile
+    image: ${PROJECT_NAME}-${SRVC_DASHBOARD}-image
+    container_name: ${PROJECT_NAME}-${SRVC_DASHBOARD}
+    ports:
+      - "127.0.0.1:${HOST_DASHBOARD_PORT}:${CTNR_DASHBOARD_PORT}"
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: ${CTNR_DASHBOARD_PORT}
+      SERVER_BASEURLPATH: ${SERVER_BASEURLPATH}
+      URL_APIGATEWAY: ${PROXY_PASS_APIGATEWAY}
+    volumes:
+      - ./dashboard/.streamlit:/home/user/app/streamlit/.streamlit
+      - ./dashboard/src:/home/user/app/streamlit/src
+    networks:
+      - stripe-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:$$SERVER_PORT/$$SERVER_BASEURLPATH/_stcore/health"]  # -f : échec si code HTTP >= 400 (obligatoire)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
 volumes:
   db-src-data:              # Volume nommé - effacé avec docker compose down -v
   db-target-data:           # Volume nommé - effacé avec docker compose down -v
