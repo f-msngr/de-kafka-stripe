@@ -28,15 +28,15 @@ load_css(css_file)
 st.sidebar.markdown("---")
 
 # Navigation with buttons
-st.sidebar.markdown("### 🛺 Navigation")
+st.sidebar.markdown("### 🐫 Navigation")
 
 # Dictionary of pages modules
 d_modules = {
 #    "Login": ("🔐", "modules.module_login"),
     "Machine Learning": ("🦧", "modules.module_ml"),
     "Analytics": ("🐎", "modules.module_analytics"),
-    "Predict": ("🔮", "modules.module_predict"),
-    "Admin": ("🗃️", "modules.module_admin")
+#    "Predict": ("🔮", "modules.module_predict"),
+    "Admin": ("🫏", "modules.module_admin")
 }
 # Initialize default page
 if "page" not in st.session_state:

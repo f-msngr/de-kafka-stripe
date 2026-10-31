@@ -54,7 +54,12 @@ def get_dbt_last_run():
     return status["finished_at"]
 
 
-
+# ===============================
+# Views
+# ===============================
+@st.cache_data(ttl=3600)
+def get_cached_count_view(view: str) -> pd.DataFrame:
+    return _get_from_gateway(f"/ml/views/info/{view}")
 
 # ===============================
 # Transactions
@@ -91,27 +96,24 @@ def get_cached_frauds_count_daily() -> pd.DataFrame:
 def get_cached_frauds_count_monthly() -> pd.DataFrame:
     return _get_from_gateway("/analytics/studies/frauds_count_monthly")
 
-#5. Fraude : montant de fraude, évitée ou subie, par marchand par mois -> somme de amt
+#5. Fraude : stats des fraude, évitée ou subie, par marchand par mois
 @st.cache_data(ttl=3600)
-def get_cached_frauds_amt_by_merchant_monthly() -> pd.DataFrame:
-    return _get_from_gateway("/analytics/studies/frauds_amt_by_merchant_monthly")
+def get_cached_frauds_stats_by_merchant_monthly() -> pd.DataFrame:
+    return _get_from_gateway("/analytics/studies/frauds_stats_by_merchant_monthly")
 
-#8. Fraude -> origine (rejet inline ou review)
-@st.cache_data(ttl=3600)
-def get_cached_frauds_count_by_merchant_monthly() -> pd.DataFrame:
-    return _get_from_gateway("/analytics/studies/frauds_count_by_merchant_monthly")
 
 # ===============================
 # Predictions
 # ===============================
 #7. Prédiction : date -> résultat (rejet, cleared, pending, reviewed), fraud_score
-#9. Prédiction -> review_status, is_fraud
+@st.cache_data(ttl=3600)
+def get_cached_predictions_count_monthly() -> pd.DataFrame:
+    return _get_from_gateway("/analytics/studies/predictions_count_monthly")
 
 
 # ===============================
 # Reviews
 # ===============================
-#10. Revue : analysts, date (période) -> nombre de lignes
 #11. Revue : analysts, date (période) -> délai entre transdate_transtime et verdict_at
 @st.cache_data(ttl=3600)
 def get_cached_reviews() -> pd.DataFrame:

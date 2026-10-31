@@ -57,3 +57,28 @@ async def get_view(view: str, request: Request):
     
     # Parquet est de type bytes, il faut éviter que fastapi essaie de le convertir en json
     return Response(content=data, media_type="application/vnd.apache.parquet")
+
+
+@ml_router.get(
+    "/views/info/{view}",
+    response_class=Response,
+    responses={200: {"content": {"application/json": {}}, "description": "Query response in json"}},
+    include_in_schema=False)
+async def get_count_view(view: str, request: Request):
+    """Renvoie le nombre de lignes d'une vue autorisée
+    - `view` : clé de la vue dans `d_VIEWS` (liste blanche), sinon 404.
+    - Le client ClickHouse est celui créé au démarrage (lifespan) et stocké
+      dans `app.state`; il est récupéré via `request`.
+    - Exécute `SELECT * FROM <vue>` ;
+    """
+    if view not in d_VIEWS:
+        raise HTTPException(status_code=404, detail="Vue inconnue")
+    
+    client = get_clickhouse_client(request)
+
+    data = await client.raw_query(
+        f"SELECT count(*) FROM {DBT_MARTS}.{d_VIEWS[view]}",
+        fmt="JSON",
+        )
+
+    return Response(content=data, media_type="application/json")

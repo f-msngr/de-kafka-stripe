@@ -150,9 +150,9 @@ async def get_transactions_count_monthly(request: Request):
 
 
 # =================================
-# Frauds
+# Fraudes
 # =================================
-# Frauds par jour
+# Fraudes par jour
 @analytics_router.get(
     "/studies/frauds_count_daily",
     response_class=Response,
@@ -174,7 +174,7 @@ async def get_frauds_count_daily(request: Request):
     return Response(content=data, media_type="application/json")
 
 
-# Frauds par mois
+# Fraudes par mois
 @analytics_router.get(
     "/studies/frauds_count_monthly",
     response_class=Response,
@@ -196,61 +196,35 @@ async def get_frauds_count_monthly(request: Request):
     return Response(content=data, media_type="application/json")
 
 
-# Montant de la fraude, évitée ou subie, par marchand par mois
+# Stats des fraudes évitées / subies, par marchand par mois
 @analytics_router.get(
-    "/studies/frauds_amt_by_merchant_monthly",
+    "/studies/frauds_stats_by_merchant_monthly",
     response_class=Response,
     responses={200: {"content": {"application/json": {}}, "description": "Query response in json"}},
     include_in_schema=False)
-async def get_frauds_amt_by_merchant_monthly(request: Request):
-    """Renvoie en json le montant de la fraude, évitée ou subie, par marchand par mois."""
+async def get_frauds_stats_by_merchant_monthly(request: Request):
+    """Renvoie en json les stats des fraudes évitées / subies, par marchand par mois"""
     client = get_clickhouse_client(request)    
     data = await client.raw_query(
-        f"SELECT \
-            merchant, \
-            fraud_month, \
-            sum(amt) AS total_fraude \
-        FROM {DBT_MARTS}.fct_frauds \
-        INNER JOIN {DBT_MARTS}.dim_merchants USING (merchant_id) \
-        GROUP BY \
-            merchant_id, \
-            merchant, \
-            fraud_month \
-        ORDER BY \
-            merchant_id ASC, \
-            fraud_month DESC",
-        fmt="JSONCompact",
-        )    
-    # Réponse à la requête au format json
-    return Response(content=data, media_type="application/json")
-
-
-# Ratio des fraudes évitées / subies, par marchand par mois
-@analytics_router.get(
-    "/studies/frauds_count_by_merchant_monthly",
-    response_class=Response,
-    responses={200: {"content": {"application/json": {}}, "description": "Query response in json"}},
-    include_in_schema=False)
-async def get_frauds_count_by_merchant_monthly(request: Request):
-    """Renvoie en json les comptes des fraudes évitées / subies, par marchand par mois"""
-    client = get_clickhouse_client(request)    
-    data = await client.raw_query(
-        f"SELECT \
-            merchant, \
-            fraud_month, \
-            origin, \
-            count(*) \
-        FROM {DBT_MARTS}.fct_frauds \
-        INNER JOIN {DBT_MARTS}.dim_merchants USING (merchant_id) \
-        WHERE origin != 'init' \
-        GROUP BY \
-            merchant_id, \
-            merchant, \
-            fraud_month, \
-            origin \
-        ORDER BY \
-            merchant_id ASC, \
-            fraud_month DESC",
+        f"""
+        SELECT
+            merchant,
+            fraud_month,
+            countIf(origin = 'reviewed') AS nb_reviewed,
+            sumIf(amt, origin = 'reviewed') AS amt_reviewed,
+            countIf(origin = 'rejected') AS nb_rejected,
+            sumIf(amt, origin = 'rejected') AS amt_rejected,
+            amt_reviewed + amt_rejected AS total_fraud
+        FROM {DBT_MARTS}.fct_frauds
+        INNER JOIN {DBT_MARTS}.dim_merchants USING (merchant_id)
+        GROUP BY
+            merchant_id,
+            merchant,
+            fraud_month
+        ORDER BY
+            merchant_id ASC,
+            fraud_month DESC
+        """,
         fmt="JSONCompact",
         )    
     # Réponse à la requête au format json
@@ -260,8 +234,29 @@ async def get_frauds_count_by_merchant_monthly(request: Request):
 # ===============================
 # Predictions
 # ===============================
-#7. Prédiction : date -> résultat (rejet, cleared, pending, reviewed), fraud_score
-#9. Prédiction -> review_status, is_fraud
+# Quel est le ratio entre les prédictions valides (cleared+pending) vs rejects ?
+@analytics_router.get(
+    "/studies/predictions_count_monthly",
+    response_class=Response,
+    responses={200: {"content": {"application/json": {}}, "description": "Query response in json"}},
+    include_in_schema=False)
+async def get_predictions_count_monthly(request: Request):
+    """Renvoie en json les status des prédictions par mois"""
+    client = get_clickhouse_client(request)    
+    data = await client.raw_query(
+        f"SELECT \
+            prediction_month, \
+            countIf(outcome = 'cleared') AS cleared, \
+            countIf(outcome = 'rejected') AS rejected, \
+            countIf(outcome = 'pending') AS pending, \
+            countIf((outcome = 'reviewed') AND (is_fraud = false)) AS reviewed_not_fraud, \
+            countIf((outcome = 'reviewed') AND (is_fraud = true)) AS reviewed_fraud \
+        FROM {DBT_MARTS}.fct_predictions \
+        GROUP BY prediction_month",
+        fmt="JSONCompact",
+        )    
+    # Réponse à la requête au format json
+    return Response(content=data, media_type="application/json")
 
 
 # ===============================

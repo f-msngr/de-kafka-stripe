@@ -10,8 +10,8 @@ from utils.api_lib import (
     get_cached_transactions_count_monthly,
     get_cached_frauds_count_daily,
     get_cached_frauds_count_monthly,
-    get_cached_frauds_amt_by_merchant_monthly,
-    get_cached_frauds_count_by_merchant_monthly,
+    get_cached_frauds_stats_by_merchant_monthly,
+    get_cached_predictions_count_monthly,
     get_cached_reviews,
 )
 
@@ -38,7 +38,7 @@ def body():
     if waited:
         st.cache_data.clear()     # les données ont changé : on repart d'un cache vide
 
-    st.markdown("Affiche les tables de faits")
+    #st.markdown("Affiche les tables de faits")
     st.write(f"DBT last run: {last_run}")
     
     # ========================================
@@ -97,16 +97,16 @@ def body():
         # Montant de la fraude, évitée ou subie, par marchand par mois
         st.subheader("Montant de la fraude (subie + évitée) par marchand par mois")
         try:
-            df = get_cached_frauds_amt_by_merchant_monthly()
+            df = get_cached_frauds_stats_by_merchant_monthly()
             st.dataframe(df, height=200)
         except ErrorGateway as e:
             st.error(str(e))
-        
-        # Ratio de fraude évitée/subie par marchand par mois
-        st.subheader("Ratio de fraude évitée/subie par marchand par mois")
+    
+    with tab_predictions:
+        st.subheader("Status des transactions par mois")
         try:
-            df = get_cached_frauds_count_by_merchant_monthly()
-            st.dataframe(df, height=200)
+            df = get_cached_predictions_count_monthly()
+            st.dataframe(df, height=210)
         except ErrorGateway as e:
             st.error(str(e))
         
