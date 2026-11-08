@@ -333,7 +333,7 @@ services:
     environment:
       SERVER_PORT: ${CTNR_DASHBOARD_PORT}
       SERVER_BASEURLPATH: ${SERVER_BASEURLPATH}
-      URL_APIGATEWAY: ${PROXY_PASS_APIGATEWAY}
+      URL_APIGATEWAY: ${URL_APIGATEWAY}
     volumes:
       - ./dashboard/.streamlit:/home/user/app/streamlit/.streamlit
       - ./dashboard/src:/home/user/app/streamlit/src
@@ -348,6 +348,45 @@ services:
     depends_on:
       api-gateway:
         condition: service_healthy
+
+  nginx:
+    #env_file:
+    #  - _CONF/dev/.env.dev
+    # Build configuration
+    build:
+      context: ./${SRVC_NGINX}
+      dockerfile: ./Dockerfile
+    image: ${PROJECT_NAME}-${SRVC_NGINX}-image              # Use this image by default
+    # Runtime configuration
+    container_name: ${PROJECT_NAME}-${SRVC_NGINX}
+    ports:
+      - "${HOST_NGINX_PORT}:${CTNR_NGINX_PORT}"
+      # - "443:443"                                         # No support for https by now
+    environment:
+    # Utilise le mécanisme d'envsubst de l'image officielle nginx qui copie 
+    # les /etc/nginx/templates/*.template dans /etc/nginx/conf.d/*.conf
+    # après avoir remplacé les ${VARIABLE} par les variables d’environnement du conteneur.
+    # NGINX_ENVSUBST_FILTER est utilisé pour filtrer les variables à remplacer dans les templates
+      - NGINX_ENVSUBST_FILTER=HOST_NGINX_PORT|PROXY_PASS_DASHBOARD
+      - CTNR_NGINX_PORT=${CTNR_NGINX_PORT}                  # Used by healthcheck
+      - HOST_NGINX_PORT=${HOST_NGINX_PORT}                  # Used by default.conf.template
+      - PROXY_PASS_DASHBOARD=${URL_DASHBOARD}               # Used by default.conf.template
+    # Networking & volumes
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template
+      - ./nginx/html:/var/www/html                          # mount nginx html files
+      - ./dashboard/src/assets/css:/var/www/html/css:ro     # mount streamlit html styles
+    networks:
+      - stripe-network
+    depends_on:
+      - dashboard
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:$$CTNR_NGINX_PORT/_health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
 
 volumes:
   db-src-data:              # Volume nommé - effacé avec docker compose down -v
