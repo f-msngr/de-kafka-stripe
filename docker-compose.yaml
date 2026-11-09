@@ -382,7 +382,7 @@ services:
     depends_on:
       - dashboard
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:$$CTNR_NGINX_PORT/_health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:$$CTNR_NGINX_PORT/_health || exit 1"]     # location /_health est défini dans default.conf.template
       interval: 30s
       timeout: 5s
       retries: 3
