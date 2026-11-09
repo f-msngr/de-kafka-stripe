@@ -58,7 +58,7 @@ Tous les services sont sur un même réseau Docker, nommé `<$PROJECT_NAME>`).
 
 📚 [Documentation](docs/)
 
-## 🚀 Lancer le projet
+## Lancer le projet
 
 [EN COURS]
 Prérequis, fichier `.env` à créer,
