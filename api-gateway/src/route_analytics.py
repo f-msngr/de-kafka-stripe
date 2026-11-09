@@ -45,6 +45,7 @@ async def get_fct(fact: str, request: Request):
     """Renvoie en json le contenu d'une vue/table dbt autorisée.
 
     - `fact` : clé de la vue/table dans `d_FACTS` (liste blanche), sinon 404.
+    - faits autorisés : `frauds`, `predictions`, `reviews`, `transactions`
     - Le client ClickHouse est celui créé au démarrage (lifespan) et stocké
       dans `app.state`; il est récupéré via `request`.
     - Exécute `SELECT * FROM <fact>` ; ClickHouse produit le json, renvoyé tel quel.
@@ -61,6 +62,35 @@ async def get_fct(fact: str, request: Request):
     
     # Réponse à la requête au format json
     return Response(content=data, media_type="application/json")
+
+
+@analytics_router.get(
+    "/info/facts/{fact}",
+    response_class=Response,
+    responses={200: {"content": {"application/json": {}}, "description": "Query response in json"}},
+    include_in_schema=True)
+async def get_fct(fact: str, request: Request):
+    """Renvoie en json le nombre d'enregistrements d'une vue/table dbt autorisée.
+
+    - `fact` : clé de la vue/table dans `d_FACTS` (liste blanche), sinon 404.
+    - faits autorisés : `frauds`, `predictions`, `reviews`, `transactions`
+    - Le client ClickHouse est celui créé au démarrage (lifespan) et stocké
+      dans `app.state`; il est récupéré via `request`.
+    - Exécute `SELECT * FROM <fact>` ; ClickHouse produit le json, renvoyé tel quel.
+    """
+    if fact not in d_FACTS:
+        raise HTTPException(status_code=404, detail="Fait inconnu")
+    
+    client = get_clickhouse_client(request)
+    
+    data = await client.raw_query(
+        f"SELECT count(*) FROM  {DBT_MARTS}.{d_FACTS[fact]}",
+        fmt="JSONCompact",   # produit par Clickhouse
+        )
+    
+    # Réponse à la requête au format json
+    return Response(content=data, media_type="application/json")
+
 
 
 # ===============================

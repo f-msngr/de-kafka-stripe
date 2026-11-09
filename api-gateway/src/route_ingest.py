@@ -40,7 +40,7 @@ TOPIC_INCOMING_TNX = os.environ["TOPIC_INCOMING_TNX"]
 # ===============================
 # Ingest endpoints
 # ===============================
-@ingest_router.post("/ingest", status_code=202)
+@ingest_router.post("/ingest", status_code=202, include_in_schema=False)
 async def ep_ingest(raw: dict, request: Request):
     
     # Validation Pydantic

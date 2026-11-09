@@ -38,8 +38,8 @@ d_VIEWS = {"train": "view_train"}  # nom réel des vues dbt autorisées à l'app
     include_in_schema=False)
 async def get_view(view: str, request: Request):
     """Renvoie en Parquet le contenu d'une vue dbt autorisée.
-
     - `view` : clé de la vue dans `d_VIEWS` (liste blanche), sinon 404.
+    - vues autorisées : `train`
     - Le client ClickHouse est celui créé au démarrage (lifespan) et stocké
       dans `app.state`; il est récupéré via `request`.
     - Exécute `SELECT * FROM <vue>` ; ClickHouse produit le Parquet, renvoyé tel quel.
@@ -60,13 +60,14 @@ async def get_view(view: str, request: Request):
 
 
 @ml_router.get(
-    "/views/info/{view}",
+    "/info/views/{view}",
     response_class=Response,
     responses={200: {"content": {"application/json": {}}, "description": "Query response in json"}},
-    include_in_schema=False)
+    include_in_schema=True)
 async def get_count_view(view: str, request: Request):
     """Renvoie le nombre de lignes d'une vue autorisée
     - `view` : clé de la vue dans `d_VIEWS` (liste blanche), sinon 404.
+    - vues autorisées : `train`
     - Le client ClickHouse est celui créé au démarrage (lifespan) et stocké
       dans `app.state`; il est récupéré via `request`.
     - Exécute `SELECT * FROM <vue>` ;

@@ -367,15 +367,16 @@ services:
     # les /etc/nginx/templates/*.template dans /etc/nginx/conf.d/*.conf
     # après avoir remplacé les ${VARIABLE} par les variables d’environnement du conteneur.
     # NGINX_ENVSUBST_FILTER est utilisé pour filtrer les variables à remplacer dans les templates
-      - NGINX_ENVSUBST_FILTER=HOST_NGINX_PORT|PROXY_PASS_DASHBOARD
+      - NGINX_ENVSUBST_FILTER=HOST_NGINX_PORT|PROXY_PASS_DASHBOARD|PROXY_PASS_API
       - CTNR_NGINX_PORT=${CTNR_NGINX_PORT}                  # Used by healthcheck
       - HOST_NGINX_PORT=${HOST_NGINX_PORT}                  # Used by default.conf.template
       - PROXY_PASS_DASHBOARD=${URL_DASHBOARD}               # Used by default.conf.template
+      - PROXY_PASS_API=${URL_APIGATEWAY}               # Used by default.conf.template
     # Networking & volumes
     volumes:
       - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template
       - ./nginx/html:/var/www/html                          # mount nginx html files
-      - ./dashboard/src/assets/css:/var/www/html/css:ro     # mount streamlit html styles
+      - ./dashboard/src/assets/css:/var/www/html/css:ro     # mount streamlit html styles in read-only mode
     networks:
       - stripe-network
     depends_on:

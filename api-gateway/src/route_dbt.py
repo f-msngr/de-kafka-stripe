@@ -10,7 +10,7 @@ dbt_router = APIRouter()
 # ================================================
 URL_APIDBT = os.environ["URL_APIDBT"]
 
-@dbt_router.get("/run-status", include_in_schema=True)
+@dbt_router.get("/run-status", include_in_schema=False)
 async def get_status():
     """
     Calls api-dbt/run_status and return the status.json from it
@@ -23,7 +23,7 @@ async def get_status():
         raise HTTPException(status_code=502, detail=f"api-dbt injoignable ou en erreur : {error_apidbt}")
     return status.json()
 
-@dbt_router.post("/run", include_in_schema=True)
+@dbt_router.post("/run", include_in_schema=False)
 async def post_dbt_run():
     """
     Calls api-dbt/run and return the status.json from it
