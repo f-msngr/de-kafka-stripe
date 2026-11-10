@@ -1,8 +1,8 @@
 # Stripe - Système de détection de fraude bancaire temps réel par prédiction
 
-## Objectif d'aprentissage
+## Objectif d'apprentissage
 
-Migration d'un précédent projet de détection de fraude, pour gérer la haute disponibilité et la reprise après incident aini que le le découplage de l'orchestration et du code métier.
+Migration d'un précédent projet de détection de fraude, pour gérer la haute disponibilité et la reprise après incident ainsi que le découplage de l'orchestration et du code métier.
 
 ## Nature du projet
 
@@ -12,9 +12,20 @@ Un analyste peut revoir les transactions litigieuses et les évaluer individuell
 Les transactions sont répliquées en temps réel par CDC dans le Data Warehouse, puis transformées avec dbt en tables analytiques et en jeux de données d'entraînement pour le ML.
 Une API FastAPI expose ces données à un dashboard Streamlit, qui permet d'analyser les fraudes et la revue manuelle des transactions.
 
-**Choix techniques :**
+## Contraintes identifiées et réponses
 
-- Modélisation de la base OLTP par rétro ingéniérie d'un fichier csv (Merise)
+Ce projet ne cherche pas à reproduire un système de paiement : il relie, de l'ELT au ML et à l'orchestration, les contraintes d'exploitation d'une chaîne de données et les réponses possibles avec des outils open source.
+
+- **Reprise après incident** -> Le journal PostgreSQL contient `__source_lsn` qui permet de suivre l'évolution des données. Un rejeu du flux Kafka ne crée pas de doublons : `ReplacingMergeTree` côté ClickHouse, puis dédoublonnage dans les modèles dbt `staging`. |
+- **Vélocité** -> **Réplication continue** par CDC pour les données, et **transformation dbt déclenchée** à la demande pour les analyses. |
+- **Charge** -> ClickHouse prend en charge le calcul d'agrégation (SELECT, COUNT,...), pas le dashboard. Un endpoint par question, avec SQL figé. Utilisation du cache Streamlit pour les petits résultats agrégés.
+- **Séparation des responsabilités** -> Un conteneur par rôle (producteur, consumer, connecteur,...). Le dashboard ignore ClickHouse : seule l'API gateway y accède.
+- **Concurrence et incidents** -> Healthchecks + ordre de démarrage par `depends_on`.
+- **Orchestration** -> Airflow en pur orchestrateur par appel à l'API gateway, via nginx, sur endpoints de commande et HTTP sensors.
+
+## Choix techniques
+
+- Modélisation de la base OLTP par rétro ingeniérie d'un fichier csv (Merise)
 - CDC temps réel depuis PostgreSQL avec Kafka + Debezium.
 - Modélisation analytique (Kimball)
 - Sink vers Data Warehouse Clickhouse
