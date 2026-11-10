@@ -23,6 +23,10 @@ Ce projet ne cherche pas à reproduire un système de paiement : il relie, de l'
 - **Concurrence et incidents** -> Healthchecks + ordre de démarrage par `depends_on`.
 - **Orchestration** -> Airflow en pur orchestrateur par appel à l'API gateway, via nginx, sur endpoints de commande et HTTP sensors.
 
+## Traitement d'une transaction entrante
+
+![Image](docs/assets/traitement_tnx_stripe.gif "Cycle de vie de la transaction")
+
 ## Choix techniques
 
 - Modélisation de la base OLTP par rétro ingeniérie d'un fichier csv (Merise)
