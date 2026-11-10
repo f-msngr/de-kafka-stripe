@@ -139,6 +139,7 @@ async def post_run():
     Lance dbt run :
     teste s'il n'y pas déjà un autre run en cours
     crée une tâche en sous process asynchrone
+    renvoie 409 : conflit si un run est déjà en cours
     """
     d_status = _load_status()
     if d_status and d_status.get("status") == "running":
