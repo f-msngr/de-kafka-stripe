@@ -35,8 +35,11 @@ def post_dbt_run_to_gateway():
     try:
         r = requests.post(f"{URL_APIGATEWAY}/dbt/run", timeout=10)
         r.raise_for_status()
-        resp = r.json()
-        return resp
+        return r.json()
+    except requests.HTTPError as e:
+        if e.response.status_code == 409:
+            raise ErrorGateway(e.response.json()["detail"]) from e   # « run en cours »
+        raise ErrorGateway(f"Gateway : {e}") from e
     except (requests.RequestException, ValueError, KeyError) as e:
         raise ErrorGateway(f"Gateway : {e}") from e
 
@@ -54,12 +57,13 @@ def get_dbt_last_run():
     return status["finished_at"]
 
 
+
 # ===============================
 # Views
 # ===============================
 @st.cache_data(ttl=3600)
 def get_cached_count_view(view: str) -> pd.DataFrame:
-    return _get_from_gateway(f"/ml/views/info/{view}")
+    return _get_from_gateway(f"/ml/info/views/{view}")
 
 # ===============================
 # Transactions

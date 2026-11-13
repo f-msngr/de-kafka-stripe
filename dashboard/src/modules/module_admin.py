@@ -1,7 +1,7 @@
 import streamlit as st
 
 # Cache
-from utils.api_lib import ErrorGateway, get_dbt_last_run, post_dbt_run_to_gateway
+from utils.api_lib import ErrorGateway, get_dbt_last_run, get_dbt_run_status, post_dbt_run_to_gateway
 
 
 # Tabs
@@ -14,38 +14,33 @@ def body():
     # CACHE
     
     st.title("🫏 Admin")
-    #st.markdown("Mise à jour manuelle des tables analytiques")
-    
  
     # ========================================
     # TABS
     # ========================================
     import time
 
-    dbt_last_run = get_dbt_last_run()
-    waited = dbt_last_run is None
+    waiting = st.empty()
+    d_status = get_dbt_run_status()
+    waited = d_status["status"] == "running"
 
-    while dbt_last_run is None:          # un run est en cours : le script reste ici, la page est grisée
+    while d_status["status"] == "running":      # run en cours : la page reste grisée ici
+        waiting.info("Vues en cours d'update…")
         time.sleep(5)
-        dbt_last_run = get_dbt_last_run()
+        d_status = get_dbt_run_status()
 
-    st.write(f"DBT last run: {dbt_last_run}")
+    waiting.empty()
+    if waited:
+        st.cache_data.clear()                   # les données ont changé
 
-    if "running" not in st.session_state:
-        st.session_state.running = False
+    st.write(f"DBT last run: {d_status['finished_at'] or 'aucun run'}")
 
-    def _clic():
-        st.session_state.running = True
-
-    st.button("DBT Run", disabled=st.session_state.running, on_click=_clic)
-
-    if st.session_state.running:
-        st.info("Updating tables analytics")
+    if st.button("DBT Run"):
         try:
-            post_dbt_run_to_gateway()
-            st.cache_data.clear()
-        finally:
-            st.session_state.running = False
-        st.rerun()
+            post_dbt_run_to_gateway()           # répond tout de suite (202) : le run continue en arrière-plan
+        except ErrorGateway as e:               # à importer depuis utils.api_lib ; ex. 409 : un run est déjà en cours
+            st.error(str(e))
+        else:
+            st.rerun()
 
         

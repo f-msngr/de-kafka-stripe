@@ -90,3 +90,8 @@ Arborescence commentée sur 1 niveau.
 La prédiction est une simulation de prédiction pour l'instant. Le projet d'origine dans le dépôt https://github.com/f-msngr/mlops-fraud-detection utilise la même base de transactions et présente l'EDA et la création du modèle.
 Il présente aussi le principe du suivi de dérive avec Evidently et les réentraînements avec comparaison des scores du modèle et promotion par alias.
 Ce ne sera pas refait pour le moment dans le projet courant.
+
+On envisage également d'intégrer les flux de navigation du client pour améliorer la qualité du modèle. Pour cela, on ajoutera Vector qui transformera les infos de navigation (session_id, event_id...) à la transaction disposant également de session_id relayée par nginx.
+Vector alimentera un topic Kafka dédié qui sera vidé dans une base MongoDB qui servira de features store. La prédiction fera appel à ce features store.
+
+![Image](docs/assets/archi_stripe_clickstream.gif "Architecture du système avec clickstream")
